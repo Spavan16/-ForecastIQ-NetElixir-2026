@@ -1,0 +1,21 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Next.js local env (may contain secrets on other projects)
+frontend/.env.local
+
+# Python
+venv/
+__pycache__/
+*.pyc
+# NOTE: *.pkl is intentionally NOT excluded — pickle/model.pkl must be committed for hackathon submission
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+
+# OS / editor
+.DS_Store

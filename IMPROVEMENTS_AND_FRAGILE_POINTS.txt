@@ -1,0 +1,62 @@
+ForecastIQ – Fragile / Break‑Prone Spots & How to Harden Them
+(Based on a quick scan of the current codebase)
+
+| # | Area / File | What’s fragile / likely to break | Why it’s a risk | Suggested fix / mitigation |
+|---|-------------|----------------------------------|-----------------|----------------------------|
+| 1 | run.sh (lines 24‑26) | Default arguments use relative paths (./data, ./pickle/model.pkl, ./output/predictions.csv). | If the script is invoked from a different working directory (e.g., via a CI job, a double‑click, or a scheduled task) the files will not be found → silent failures or cryptic “file not found” errors. | Convert defaults to absolute paths based on the script’s location: 
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DATA_DIR="${1:-$SCRIPT_DIR/data}"
+etc. 
+Or explicitly document that the script must be run from the repo root.
+| 2 | src/generate_features.py & src/predict.py | Hard‑coded expectation of specific CSV column names (date, revenue, spend, clicks, impressions, conversions, plus channel‑specific columns). | Real‑world ad exports often differ (different naming, missing columns, extra spaces). The code will raise a KeyError or silently impute wrong defaults (see validation imputation) leading to garbage features. | • Move column‑name mapping to a configuration file (YAML/JSON) or environment variables.
+• In ValidationEngine, after reading each CSV, rename columns using a flexible map and validate that required columns exist; if not, raise a clear, user‑friendly error instead of imputing arbitrary values.
+• Add a schema‑validation step (e.g., pandera or great_expectations) that fails fast with a helpful message.
+| 3 | src/validation.py – imputation logic (lines 41‑46) | When a column is missing, the code imputes dummy values (timestamp, “UNKNOWN_SEARCH”, 0). | This can mask serious data problems and produce misleading forecasts (e.g., treating missing spend as zero). | Replace blanket imputation with explicit warnings and optional strict mode: 
+– If STRICT_MODE=true (env var), abort on missing required columns.
+– Otherwise, log a high‑severity warning and skip the offending rows rather than filling with nonsense.
+| 4 | src/features.py – create_daily_aggregate_features (lines 31‑37) | Assumes columns spend, revenue, clicks, impressions, conversions exist after validation. | If any of those columns are missing (or have different names) the agg() call will raise a KeyError. | After validation, ensure the required columns are present (maybe via a helper that returns a DataFrame with a standardized schema). If missing, either fill with 0 and log a warning, or abort with a clear error.
+| 5 | src/models.py – Ensemble averaging & residual calculation (lines 79‑80, 210) | Uses a hard‑coded weighting scheme (Prophet 0.35, XGB 0.25, LGB 0.20, Cat 0.20) and a heuristic horizon‑std scaling (N**0.75). | The weights were chosen for the hackathon data; they may be sub‑optimal for new campaigns, causing biased forecasts. The N**0.75 factor lacks statistical justification and can under‑ or over‑estimate uncertainty. | • Expose the weights and horizon‑scaling exponent as configurable parameters (via .env or a config YAML).
+• Derive prediction intervals from each model’s native uncertainty (Prophet already gives intervals; for tree models use quantile regression or conformal prediction) and combine them via Monte‑Carlo sampling rather than a single std‑dev approximation.
+| 6 | src/models.py – train_dimension_models & forecast_dimension universal fallback (lines 242‑255) | When a specific channel/campaign/type/model was not seen during training, the code falls back to the overall forecast multiplied by arbitrary scalars (0.33, 0.5, 0.05). | These scalars are completely ad‑hoc; for a brand‑new channel the forecast could be wildly off, yet the system will still return a number, giving a false sense of confidence. | Replace the fallback with a principled hierarchical model: 
+– Train a global model and per‑group random effects (or use a simple group‑level bias term).
+– If a group is truly unseen, return the global forecast with increased uncertainty (e.g., inflate the residual std dev) rather than applying a magic scalar.
+| 7 | src/models.py – Model persistence (pickle) | The entire ensemble (including large XGBoost/LightGBM/CatBoost objects) is serialized with Python’s pickle. | Pickle is insecure (arbitrary code execution on load) and version‑sensitive – upgrading scikit‑learn, XGBoost, etc. can break deserialization, causing silent corruption or crashes. | • Switch to joblib with compression (joblib.dump(..., compress=3)) or persist each model in its native format (JSON/UBJ for tree models, Prophet’s internal pickle).
+• At load time, verify the pickle’s metadata (e.g., a git SHA or timestamp) and refuse to load if the version mismatch exceeds a tolerance.
+• Consider adding a signature or checksum to detect tampering.
+| 8 | src/predict.py – start‑date inference (lines 32‑49) | If reading the feature file fails, it falls back to a hard‑coded date 2026‑06‑06 and creates an empty df. | This can produce forecasts that start from an arbitrary date, completely disconnected from the actual data, with no indication to the user that something went wrong. | • On failure, raise an exception with a clear message (“Unable to determine start date from feature file; check that generate_features.py succeeded”).
+• In a service context, return an HTTP 400/500 with error details instead of silently producing nonsense.
+| 9 | src/monte_carlo.py (not shown but inferred) | Likely uses numpy.random without seeding; results will differ each run. | Non‑deterministic output makes debugging and reproducibility hard, especially for audits or CI tests. | Add an optional seed parameter (configurable via env) and call np.random.seed(seed) at the start of the simulation. Log the seed used for each run.
+|10| src/budget_optimizer.py – Optuna study (no timeout, no n_jobs limit) | Optuna may run hundreds of trials, each training lightweight models; could take seconds or block the API thread. | In production, a long‑running request can exhaust workers, cause time‑outs, or lead to cascading failures under load. | • Run the optimization as a background job (Celery, RQ, or FastAPI BackgroundTasks) and return a job ID for polling.
+• Add a configurable timeout or max_trial_duration and enable n_jobs=-1 to parallelize trials.
+• Cache Optuna studies keyed by base spend levels so repeated calls reuse prior work.
+|11| src/chat_engine.py – LLM calls | Directly calls external APIs (OpenAI/Gemini/Claude) without retry, timeout, or circuit‑breaker logic. If the API key is missing or the network is down, the mock fallback may still be bypassed incorrectly, leading to unhandled exceptions. | Service outages or rate limits will cause 500 errors, degrading user experience. | • Wrap every LLM call in a retry with exponential backoff (e.g., tenacity).
+• Enforce a short timeout (≤ 5 s) and fallback to MockLLM on any exception.
+• Validate that required API keys exist at startup; if missing, disable the real provider and log a warning.
+|12| src/pdf_reporting.py – ReportLab usage | Assumes certain fonts are available; on minimal Linux containers the default font may be missing, causing the PDF generation to raise an exception. | The “Export Report” button could silently fail, leaving users without the promised artefact. | • Explicitly register a free fallback font (e.g., DejaVu Sans) bundled with the app or download it at startup.
+• Catch reportlab.errors.RLException and return a meaningful error or a plain‑text fallback.
+|13| backend/src/main.py – sys.path hack (line 14‑15) | Adds the repository root to sys.path based on __file__. If the module is imported from a different location (e.g., via python -m backend.src.main from elsewhere) the path may be wrong, causing import errors. | Makes the backend less portable and harder to test in isolated environments (e.g., Docker multi‑stage builds). | • Structure the project as a proper installable package (pip install -e .) and rely on standard import mechanisms (from forecastiq.src import …).
+• Remove the manual sys.path manipulation.
+|14| backend/src/main.py – Global CACHE dictionary (line 44) | Caches the unified dataframe indefinitely; if the underlying CSV files are updated (e.g., new daily data), the API will continue serving stale results. | Leads to outdated forecasts being served until the process is restarted. | • Implement a TTL or file‑hash‑based invalidation: before returning cached data, compare a hash (or last‑modified timestamp) of the source CSVs; if changed, rebuild the cache.
+• Alternatively, expose an endpoint /cache/refresh that forces a reload.
+|15| frontend/ – API endpoint hardcoding (likely in various React components) | The frontend probably calls http://localhost:8000/... directly. | When deployed behind a proxy, in Docker, or to a different domain, the calls will break or suffer CORS errors. | • Use relative URLs (e.g., /api/...) or read the base URL from an environment variable at build time (NEXT_PUBLIC_API_BASE).
+• Enable proxying in Next.js (next.config.js) so dev and prod behave identically.
+|16| Overall – No visible unit / integration test suite | Changes to any module risk silently breaking the pipeline. | Without tests, refactoring (e.g., to fix the items above) is hazardous. | • Add a tests/ directory with pytest.
+• Unit test pure functions (validation.py, features.py, utils.py).
+• Integration test the CLI (run.sh) against a small, known dataset and assert that predictions.csv has the expected shape and sensible values (P10 ≤ P50 ≤ P90, non‑negative).
+• Hook tests into CI (GitHub Actions).
+|17| Logging – Mostly logger.info/warning/error without structured fields | Makes log aggregation (ELK, Loki) harder; no request‑ids, timestamps in JSON format. | Debugging production issues becomes time‑consuming. | • Configure logging to emit JSON (via python-json-logger or loguru).
+• Include request‑ID (via FastAPI middleware) and other context (user, endpoint).
+|18| Requirements.txt – Exact versions (good) but no upper bounds on transitive deps | A future release of a transitive dependency could introduce a breaking change. | Although the pinned versions protect direct deps, indirect deps can still drift. | • Periodically run pip check and pip-audit in CI.
+• Consider using a lockfile (pip-tools or poetry) to capture the full dependency tree.
+
+Quick‑Start Hardening Checklist
+1. Make paths absolute in run.sh (based on script location).
+2. Add a config layer (.env + pydantic.BaseSettings) for weights, horizon exponent, Monte‑Carlo iterations, Optuna trials, etc.
+3. Validate & standardize column names early; reject or clearly warn if required columns are missing.
+4. Replace pickle with joblib (compressed) or native model formats, and add a version/hash check.
+5. Make uncertainty quantification model‑based (Prophet intervals + quantile regression / conformal prediction).
+6. Run the budget optimizer as a background job and return a job ID for polling.
+7. Wrap external LLM calls with retry/timeout and guaranteed fallback to the mock.
+8. Add a simple test suite (unit + end‑to‑end) and CI pipeline (GitHub Actions).
+9. Expose a health check (/health) and containerize the FastAPI backend with a Dockerfile.
+10. Structure the project as an installable package and remove manual sys.path hacks.
