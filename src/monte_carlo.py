@@ -55,12 +55,26 @@ class MonteCarloSimulator:
         # We simulate 10,000 possible revenue realizations using a normal distribution around
         # base expectations, with spread now derived from the ensemble's actual residual
         # variance rather than a fixed assumption (see fix note above).
+        # BUG fix: previously used np.clip() as a hard boundary, which doesn't discard
+        # out-of-range draws — it snaps every one of them to exactly the floor/ceiling value.
+        # At realistic (higher) volatility levels this piles up a large fraction of the left
+        # tail onto a single point, producing an artificial spike in the revenue histogram
+        # instead of a smooth distribution tail. Resample out-of-bounds values instead, which
+        # preserves the true shape of the tail near the bounds.
+        rev_lo, rev_hi = base_revenue_30d * 0.4, base_revenue_30d * 2.5
         sim_revenues = np.random.normal(loc=base_revenue_30d, scale=base_revenue_30d * revenue_volatility, size=self.n_simulations)
-        sim_revenues = np.clip(sim_revenues, a_min=base_revenue_30d * 0.4, a_max=base_revenue_30d * 2.5)
+        rev_mask = (sim_revenues < rev_lo) | (sim_revenues > rev_hi)
+        while rev_mask.any():
+            sim_revenues[rev_mask] = np.random.normal(loc=base_revenue_30d, scale=base_revenue_30d * revenue_volatility, size=int(rev_mask.sum()))
+            rev_mask = (sim_revenues < rev_lo) | (sim_revenues > rev_hi)
 
         # We simulate spend with slightly lower volatility (since budgets are generally controlled)
+        spend_lo, spend_hi = base_spend_30d * 0.7, base_spend_30d * 1.4
         sim_spends = np.random.normal(loc=base_spend_30d, scale=base_spend_30d * (revenue_volatility * 0.4), size=self.n_simulations)
-        sim_spends = np.clip(sim_spends, a_min=base_spend_30d * 0.7, a_max=base_spend_30d * 1.4)
+        spend_mask = (sim_spends < spend_lo) | (sim_spends > spend_hi)
+        while spend_mask.any():
+            sim_spends[spend_mask] = np.random.normal(loc=base_spend_30d, scale=base_spend_30d * (revenue_volatility * 0.4), size=int(spend_mask.sum()))
+            spend_mask = (sim_spends < spend_lo) | (sim_spends > spend_hi)
 
         sim_roas = sim_revenues / sim_spends
 

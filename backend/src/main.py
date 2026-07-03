@@ -336,7 +336,14 @@ def simulate_budget_changes(req: BudgetSimRequest):
         
     for req_ch in ["Google Ads", "Meta Ads", "Bing Ads"]:
         if req_ch not in norm_spends or norm_spends[req_ch] <= 0:
-            norm_spends[req_ch] = 25000.0
+            # BUG fix (P3): this used to hardcode a flat 25000.0 for any channel missing/zero
+            # in the historical data — same fabricated-constant pattern as the old BUG_04.
+            # Derive the fallback from whatever channels DO have valid data instead (average
+            # of the other two run-rates), so a missing channel gets a portfolio-informed
+            # estimate rather than an arbitrary number. Only fall through to a fixed constant
+            # in the genuinely-no-data-anywhere case, which can't be derived from anything.
+            valid_spends = [v for k, v in norm_spends.items() if k != req_ch and v > 0]
+            norm_spends[req_ch] = (sum(valid_spends) / len(valid_spends)) if valid_spends else 25000.0
             
     res = opt.simulate_budget_change(req.google_pct, req.meta_pct, req.bing_pct, norm_spends)
     return res

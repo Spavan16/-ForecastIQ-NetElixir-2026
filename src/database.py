@@ -10,6 +10,14 @@ from src.utils import get_logger, DB_PATH
 
 logger = get_logger("DatabaseManager")
 
+# NOTE (P2 audit finding, documented rather than silently left implicit): this module is
+# fully implemented but not currently imported or called anywhere in backend/src/main.py or
+# the run.sh grading pipeline (generate_features.py / predict.py). No endpoint persists a
+# ForecastRun, Scenario, or Report row today — querying forecast_iq.db will return nothing.
+# It's a ready-to-wire persistence layer for a future "save/revisit past forecast runs"
+# feature, not a currently-active part of the request path. Kept as-is (not deleted, not
+# force-wired in) since integrating it is a feature decision, not a bug fix.
+
 Base = declarative_base()
 
 def _utcnow():

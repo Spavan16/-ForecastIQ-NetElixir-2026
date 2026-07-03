@@ -33,6 +33,13 @@ class RiskIntelligenceEngine:
         # HHI of 0.33 (perfect 3-way split) = Score 20. HHI of 1.0 (100% one channel) = Score 100.
         ch_dep_score = min(100.0, max(0.0, (hhi - 0.33) * 150.0))
 
+        # BUG fix (P3): top-channel name/share used to be hardcoded to "Google Ads" / "50%"
+        # in the mitigation text below regardless of which channel actually dominates. Derive
+        # it from the real ch_shares computed above so the copy stays correct if a different
+        # channel becomes the leader (e.g. on a different dataset or after reallocation).
+        top_channel = str(ch_shares.idxmax())
+        top_channel_share_pct = round(float(ch_shares.max()) * 100.0, 1)
+
         # 3. ROAS Instability Score — weekly granularity
         weekly_agg = self.historical_df.groupby(pd.Grouper(key='date', freq='W')).agg(
             revenue=('revenue', 'sum'), spend=('spend', 'sum')
@@ -69,7 +76,7 @@ class RiskIntelligenceEngine:
         elif overall_risk_score < 65.0:
             risk_level = "Medium Risk"
             badge_color = "bg-amber-500/10 text-amber-500 border-amber-500/20"
-            summary_text = "Stable overarching performance with moderate sensitivity to seasonal CPC spikes and slight channel concentration on Google Ads."
+            summary_text = f"Stable overarching performance with moderate sensitivity to seasonal CPC spikes and slight channel concentration on {top_channel}."
         else:
             risk_level = "High Risk"
             badge_color = "bg-rose-500/10 text-rose-500 border-rose-500/20"
@@ -89,7 +96,11 @@ class RiskIntelligenceEngine:
                 "score": round(ch_dep_score, 1),
                 "status": "Concentrated" if ch_dep_score > 50 else "Diversified",
                 "impact": "Medium",
-                "mitigation": "Google Ads represents over 50% of revenue capture. Begin scaling top-of-funnel Meta prospecting to establish a strong secondary growth pillar."
+                "mitigation": f"{top_channel} represents {top_channel_share_pct}% of revenue capture. " + (
+                    "Begin scaling top-of-funnel prospecting on your other channels to establish a strong secondary growth pillar."
+                    if ch_dep_score > 50 else
+                    "Concentration is within a healthy range; continue monitoring as spend allocation shifts."
+                )
             },
             {
                 "name": "ROAS Instability",

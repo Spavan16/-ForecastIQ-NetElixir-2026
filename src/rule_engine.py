@@ -96,23 +96,32 @@ class RuleInsightEngine:
             })
 
         # 4. Budget Recommendations
-        budget_recs = [
-            {
-                "channel": "Google Ads",
-                "action": "Increase Spend (+15%)",
-                "rationale": "Acts as the primary transactional bedrock with an exceptionally dependable P50 ROAS above 4.8x."
-            },
-            {
-                "channel": "Meta Ads",
-                "action": "Optimize Pacing (+20%)",
-                "rationale": "High elasticity channel capable of driving significant incremental traffic and brand discovery."
-            },
-            {
-                "channel": "Bing Ads",
-                "action": "Maintain / Re-allocate (-10%)",
-                "rationale": "Stable conversion rates but limited overarching search volume. Shift excess generic budget to Google Exact Match."
-            }
-        ]
+        # BUG fix (P3): this block used to return the exact same three recommendations
+        # (Google +15%, Meta +20%, Bing -10%) unconditionally, regardless of self.historical_df.
+        # Derive per-channel ROAS from real spend/revenue and size the action off the gap to
+        # portfolio overall_roas, so the numbers and rationale actually trace back to data.
+        channel_agg = self.historical_df.groupby('channel').agg(
+            spend=('spend', 'sum'), revenue=('revenue', 'sum')
+        )
+        channel_agg['roas'] = channel_agg['revenue'] / (channel_agg['spend'] + 1e-5)
+        channel_agg['spend_share'] = channel_agg['spend'] / (channel_agg['spend'].sum() + 1e-5)
+
+        budget_recs = []
+        for channel, row in channel_agg.sort_values('roas', ascending=False).iterrows():
+            roas_gap_pct = (row['roas'] - overall_roas) / (overall_roas + 1e-5) * 100.0
+            # Scale the recommended adjustment with the ROAS gap, bounded to a sane range so a
+            # noisy small-sample channel doesn't produce an absurd swing.
+            magnitude = int(min(30, max(5, round(abs(roas_gap_pct) * 0.6))))
+            if roas_gap_pct > 10:
+                action = f"Increase Spend (+{magnitude}%)"
+                rationale = f"{channel} is outperforming portfolio ROAS by {roas_gap_pct:.0f}% ({row['roas']:.2f}x vs {overall_roas:.2f}x blended). Headroom exists to scale before diminishing returns set in."
+            elif roas_gap_pct < -10:
+                action = f"Re-allocate ({-magnitude}%)"
+                rationale = f"{channel} is trailing portfolio ROAS by {abs(roas_gap_pct):.0f}% ({row['roas']:.2f}x vs {overall_roas:.2f}x blended). Shifting a portion of this budget toward higher-performing channels should lift blended efficiency."
+            else:
+                action = "Maintain / Optimize Pacing"
+                rationale = f"{channel} ROAS ({row['roas']:.2f}x) is tracking close to the portfolio blended average ({overall_roas:.2f}x) — stable and not currently a reallocation priority."
+            budget_recs.append({"channel": channel, "action": action, "rationale": rationale})
 
         # 5. Forecast Explanation
         forecast_explain = (

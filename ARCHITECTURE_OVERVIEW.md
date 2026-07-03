@@ -42,7 +42,7 @@ output/predictions.csv      ← scored deliverable
 | State | React useState / useEffect |
 | API communication | fetch() with `NEXT_PUBLIC_API_BASE` env var |
 
-The frontend is a single-page executive dashboard with six views: Overview, Forecasts, Budget Optimizer, Scenarios, Explainability, and Risk Intelligence. All data is fetched from the FastAPI backend at startup and cached client-side.
+The frontend is a single-page executive dashboard with nine views: Overview, Data Validation, Forecasts, Scenarios, Budget Optimizer, Monte Carlo, Explainability, Risk & Insights, and Ask ForecastIQ (chat). All data is fetched from the FastAPI backend at startup and cached client-side.
 
 ---
 
@@ -53,11 +53,13 @@ The frontend is a single-page executive dashboard with six views: Overview, Fore
 | Framework | FastAPI |
 | Server | Uvicorn |
 | Language | Python 3.11+ |
-| Data layer | SQLite via SQLAlchemy |
+| Data layer | SQLite via SQLAlchemy (models defined in `src/database.py`, not yet wired into any endpoint — see note below) |
 | Serialization | Pydantic v2 |
 | PDF generation | ReportLab |
 
-The backend exposes 13 REST endpoints under `/api/`. All heavy computation (forecasting, SHAP, Monte Carlo, optimization) runs once on startup and is cached in-memory for sub-millisecond subsequent API responses. Cache invalidation is triggered by file modification timestamps on the `data/` CSVs.
+The backend exposes 15 REST endpoints under `/api/`. All heavy computation (forecasting, SHAP, Monte Carlo, optimization) runs once on startup and is cached in-memory for sub-millisecond subsequent API responses. Cache invalidation is triggered by file modification timestamps on the `data/` CSVs.
+
+**Note on `src/database.py`:** a full SQLAlchemy persistence layer (`User`, `UploadedDataset`, `ForecastRun`, `Scenario`, `Report` models) exists in the codebase but is not currently imported or called by any endpoint below. It's scaffolding for a future "save/revisit past runs" feature, not part of the active request path today.
 
 ### API Endpoints
 
@@ -66,6 +68,7 @@ The backend exposes 13 REST endpoints under `/api/`. All heavy computation (fore
 | `/api/status` | GET | System health, LLM provider, data quality score |
 | `/api/overview` | GET | Executive KPIs, 90-day trajectory, channel attribution |
 | `/api/forecasts` | GET | P10/P50/P90 by dimension (Overall/Channel/CampaignType/Campaign) |
+| `/api/dimensions` | GET | Real set of channels and campaign types the model was trained on |
 | `/api/trajectory` | GET | 90-day daily revenue trajectory for area chart |
 | `/api/validation` | GET | Full data quality audit report |
 | `/api/simulations` | GET | Monte Carlo portfolio simulation results |
@@ -110,7 +113,7 @@ User Question / Insight Request
    YES ──────────────────────────────────────────────────────┐
         │                                                     │
         NO                                              GeminiProvider
-        │                                               (gemini-2.0-flash)
+        │                                               (gemini-2.5-flash)
         ▼                                                     │
   MockLLMProvider                                             │
   (fully data-driven,                                         │

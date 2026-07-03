@@ -5,7 +5,8 @@ import {
   LayoutDashboard, Database, TrendingUp, Sliders, Cpu,
   Layers, ShieldAlert, MessageSquare, FileText,
   RefreshCw, CheckCircle2, AlertTriangle, ArrowUpRight,
-  ArrowDownRight, Sparkles, Zap, Download, DollarSign, BarChart2, PieChart as PieIcon, Send
+  ArrowDownRight, Sparkles, Zap, Download, DollarSign, BarChart2, PieChart as PieIcon, Send,
+  Maximize2, X
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -383,7 +384,7 @@ function TabOverview({ data, loading, error }: { data: OverviewState | null; loa
               <Pie data={data.channel_shares} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2}>
                 {data.channel_shares.map((c, i) => <Cell key={i} fill={c.color} />)}
               </Pie>
-              <Tooltip contentStyle={{ backgroundColor: "#0F172A", borderColor: "#334155", borderRadius: 8, color: "#fff" }} formatter={(v: any) => `${v}%`} />
+              <Tooltip contentStyle={{ backgroundColor: "#0F172A", borderColor: "#334155", borderRadius: 8, color: "#fff" }} itemStyle={{ color: "#fff" }} labelStyle={{ color: "#94A3B8" }} formatter={(v: any) => `${v}%`} />
             </RePieChart>
           </ResponsiveContainer>
           <div className="flex flex-col gap-1.5 mt-2">
@@ -710,36 +711,55 @@ function TabMontecarlo({ mc, loading, error }: { mc: MonteCarloResponse | null; 
 }
 
 // ─── Tab: Explainability ─────────────────────────────────────────
+function ShapBarChart({ data, mode, height }: { data: ShapDriver[]; mode: "revenue" | "roas"; height: number }) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, left: 100, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
+        <XAxis type="number" tick={{ fontSize: 10, fill: "#64748B" }} tickFormatter={v => mode === "revenue" ? `${(v / 1000).toFixed(0)}k` : `${v}x`} />
+        <YAxis dataKey="feature" type="category" tick={{ fontSize: 10, fill: "#94A3B8" }} width={140} />
+        <Tooltip contentStyle={{ backgroundColor: "#0F172A", borderColor: "#334155", borderRadius: 8, color: "#fff" }} itemStyle={{ color: "#fff" }} labelStyle={{ color: "#94A3B8" }} formatter={(v: any) => mode === "revenue" ? [`${Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 })}`, "Causal Impact"] : [`${Number(v).toFixed(2)}x`, "ROAS Impact"]} />
+        <Bar dataKey="shap_impact" fill={mode === "revenue" ? "#0EA5E9" : "#14B8A6"} radius={[0, 8, 8, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
 function TabExplainability({ data, loading, error }: { data: ExplainabilityResponse | null; loading: boolean; error?: string }) {
+  const [showAllCampaigns, setShowAllCampaigns] = useState(false);
+  const [campaignSort, setCampaignSort] = useState<"revenue" | "best" | "worst">("revenue");
+  const [expandedChart, setExpandedChart] = useState<"revenue" | "roas" | null>(null);
   if (loading) return <LoadingBlock label="Explainability" />;
   if (error) return <ErrorBlock label="Explainability" message={error} />;
   if (!data) return <LoadingBlock label="Explainability" />;
+
+  const sortedCampaigns = [...data.campaign_importance].sort((a, b) => {
+    if (campaignSort === "best") return b.average_roas - a.average_roas;
+    if (campaignSort === "worst") return a.average_roas - b.average_roas;
+    return b.total_historical_revenue - a.total_historical_revenue;
+  });
+  const visibleCampaigns = showAllCampaigns ? sortedCampaigns : sortedCampaigns.slice(0, 3);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-2 gap-6">
         <Card>
-          <h3 className="text-sm font-semibold text-slate-300 mb-4">Top Revenue Drivers (SHAP Value Impact)</h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={data.top_revenue_drivers} layout="vertical" margin={{ top: 4, right: 16, left: 60, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
-              <XAxis type="number" tick={{ fontSize: 10, fill: "#64748B" }} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
-              <YAxis dataKey="feature" type="category" tick={{ fontSize: 10, fill: "#94A3B8" }} width={56} />
-              <Tooltip contentStyle={{ backgroundColor: "#0F172A", borderColor: "#334155", borderRadius: 8, color: "#fff" }} itemStyle={{ color: "#fff" }} labelStyle={{ color: "#94A3B8" }} formatter={(v: any) => [`${Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 })}`, "Causal Impact"]} />
-              <Bar dataKey="shap_impact" fill="#0EA5E9" radius={[0, 8, 8, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-slate-300">Top Revenue Drivers (SHAP Value Impact)</h3>
+            <button onClick={() => setExpandedChart("revenue")} className="text-slate-500 hover:text-sky-400 transition-colors" title="Expand chart">
+              <Maximize2 size={14} />
+            </button>
+          </div>
+          <ShapBarChart data={data.top_revenue_drivers} mode="revenue" height={280} />
         </Card>
         <Card>
-          <h3 className="text-sm font-semibold text-slate-300 mb-4">Top ROAS Drivers (SHAP Multiplier Impact)</h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={data.top_roas_drivers} layout="vertical" margin={{ top: 4, right: 16, left: 60, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
-              <XAxis type="number" tick={{ fontSize: 10, fill: "#64748B" }} tickFormatter={v => `${v}x`} />
-              <YAxis dataKey="feature" type="category" tick={{ fontSize: 10, fill: "#94A3B8" }} width={56} />
-              <Tooltip contentStyle={{ backgroundColor: "#0F172A", borderColor: "#334155", borderRadius: 8, color: "#fff" }} itemStyle={{ color: "#fff" }} labelStyle={{ color: "#94A3B8" }} formatter={(v: any) => [`${Number(v).toFixed(2)}x`, "ROAS Impact"]} />
-              <Bar dataKey="shap_impact" fill="#14B8A6" radius={[0, 8, 8, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-slate-300">Top ROAS Drivers (SHAP Multiplier Impact)</h3>
+            <button onClick={() => setExpandedChart("roas")} className="text-slate-500 hover:text-sky-400 transition-colors" title="Expand chart">
+              <Maximize2 size={14} />
+            </button>
+          </div>
+          <ShapBarChart data={data.top_roas_drivers} mode="roas" height={280} />
         </Card>
       </div>
       <Card>
@@ -756,9 +776,19 @@ function TabExplainability({ data, loading, error }: { data: ExplainabilityRespo
         </div>
       </Card>
       <Card>
-        <h3 className="text-sm font-semibold text-slate-300 mb-4">Top Campaigns by Historical Revenue</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-slate-300">Top Campaigns by Historical Revenue</h3>
+          <div className="flex gap-2">
+            {([["revenue", "Revenue"], ["best", "Best ROAS"], ["worst", "Worst ROAS"]] as const).map(([key, label]) => (
+              <button key={key} onClick={() => setCampaignSort(key)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors ${campaignSort === key ? "bg-sky-500 border-sky-500 text-white" : "bg-slate-800/60 border-slate-700 text-slate-300 hover:border-sky-500/50"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex flex-col gap-2">
-          {data.campaign_importance.map((c, i) => (
+          {visibleCampaigns.map((c, i) => (
             <div key={i} className="flex items-center justify-between bg-slate-800/40 rounded-lg px-4 py-2.5 text-sm">
               <div className="flex flex-col">
                 <span className="font-medium text-slate-200">{c.campaign_name}</span>
@@ -770,13 +800,63 @@ function TabExplainability({ data, loading, error }: { data: ExplainabilityRespo
             </div>
           ))}
         </div>
+        {sortedCampaigns.length > 3 && (
+          <button onClick={() => setShowAllCampaigns(v => !v)}
+            className="w-full mt-3 py-2 rounded-lg text-xs font-medium text-sky-400 border border-slate-800 hover:border-sky-500/40 hover:bg-slate-800/40 transition-colors">
+            {showAllCampaigns ? "Show less" : `Show ${sortedCampaigns.length - 3} more (${sortedCampaigns.length} total)`}
+          </button>
+        )}
       </Card>
+      {expandedChart && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-8" onClick={() => setExpandedChart(null)}>
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-4xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-slate-200">
+                {expandedChart === "revenue" ? "Top Revenue Drivers (SHAP Value Impact)" : "Top ROAS Drivers (SHAP Multiplier Impact)"}
+              </h3>
+              <button onClick={() => setExpandedChart(null)} className="text-slate-400 hover:text-white transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <ShapBarChart
+              data={expandedChart === "revenue" ? data.top_revenue_drivers : data.top_roas_drivers}
+              mode={expandedChart}
+              height={520}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── Tab: Risk & Insights ────────────────────────────────────────────
 const POSITIVE_STATUSES = new Set(["Healthy", "Diversified", "Stable", "Excellent", "Low"]);
+const SEVERITY_STYLES: Record<string, string> = {
+  High: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+  Medium: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+  Low: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+};
+
+function RiskGauge({ score }: { score: number }) {
+  const clamped = Math.max(0, Math.min(100, score));
+  const color = clamped >= 70 ? "#F43F5E" : clamped >= 40 ? "#F59E0B" : "#10B981";
+  const circumference = 2 * Math.PI * 42;
+  const offset = circumference * (1 - clamped / 100);
+  return (
+    <div className="relative w-28 h-28 shrink-0">
+      <svg viewBox="0 0 100 100" className="w-28 h-28 -rotate-90">
+        <circle cx="50" cy="50" r="42" fill="none" stroke="#1E293B" strokeWidth="10" />
+        <circle cx="50" cy="50" r="42" fill="none" stroke={color} strokeWidth="10" strokeLinecap="round"
+          strokeDasharray={circumference} strokeDashoffset={offset} style={{ transition: "stroke-dashoffset 0.6s ease" }} />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-2xl font-black text-white">{clamped}</span>
+        <span className="text-[9px] text-slate-500 uppercase tracking-wide">/ 100</span>
+      </div>
+    </div>
+  );
+}
 
 function TabRisk({ risk, insights, loading, error }: { risk: RiskProfile | null; insights: InsightsResponse | null; loading: boolean; error?: string }) {
   if (loading) return <LoadingBlock label="Risk & Insights" />;
@@ -784,67 +864,80 @@ function TabRisk({ risk, insights, loading, error }: { risk: RiskProfile | null;
   if (!risk) return <LoadingBlock label="Risk & Insights" />;
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-6">
-        <Card>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-slate-300">Risk Intelligence Profile</h3>
-            <span className={`px-2 py-1 rounded text-xs font-bold border ${risk.badge_color}`}>{risk.risk_classification}</span>
+      <Card>
+        <div className="flex items-start gap-6">
+          <RiskGauge score={risk.risk_score} />
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <h3 className="text-sm font-semibold text-slate-300">Risk Intelligence Profile</h3>
+              <span className={`px-2 py-0.5 rounded text-xs font-bold border ${risk.badge_color}`}>{risk.risk_classification}</span>
+            </div>
+            <p className="text-xs text-slate-400 leading-relaxed">{risk.executive_risk_summary}</p>
           </div>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="text-4xl font-black text-white">{risk.risk_score}</div>
-            <div className="text-xs text-slate-400">/ 100 Risk Score</div>
-          </div>
-          <p className="text-xs text-slate-400 mb-4">{risk.executive_risk_summary}</p>
-          <div className="flex flex-col gap-2">
-            {risk.risk_factors.map((f, i) => (
-              <div key={i} className="bg-slate-800/40 rounded-lg p-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold text-slate-200">{f.name}</span>
-                  <span className={`text-xs font-bold ${POSITIVE_STATUSES.has(f.status) ? "text-emerald-400" : "text-amber-400"}`}>{f.status} · {f.score}</span>
-                </div>
-                <p className="text-[11px] text-slate-400">{f.mitigation}</p>
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-2 gap-4">
+        {risk.risk_factors.map((f, i) => {
+          const positive = POSITIVE_STATUSES.has(f.status);
+          return (
+            <Card key={i} className="!p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-slate-200">{f.name}</span>
+                <span className={`text-xs font-bold ${positive ? "text-emerald-400" : "text-amber-400"}`}>{f.status}</span>
               </div>
-            ))}
-          </div>
-        </Card>
-        {insights && (
+              <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden mb-2">
+                <div className={`h-full rounded-full ${positive ? "bg-emerald-500" : "bg-amber-500"}`} style={{ width: `${Math.max(4, Math.min(100, f.score))}%` }} />
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">{f.mitigation}</p>
+            </Card>
+          );
+        })}
+      </div>
+      {insights && (
+        <div className="grid grid-cols-3 gap-4">
           <Card>
-            <h3 className="text-sm font-semibold text-slate-300 mb-3">Growth Opportunities</h3>
-            <div className="flex flex-col gap-3 mb-5">
+            <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2"><Sparkles size={14} className="text-emerald-400" /> Growth Opportunities</h3>
+            <div className="flex flex-col gap-3">
               {insights.growth_opportunities.map((g, i) => (
                 <div key={i} className="bg-slate-800/40 rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs font-bold text-emerald-400">{g.title}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{g.tag}</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{g.tag}</span>
                   </div>
-                  <p className="text-[11px] text-slate-400">{g.insight}</p>
-                </div>
-              ))}
-            </div>
-            <h3 className="text-sm font-semibold text-slate-300 mb-3">Risk Assessment</h3>
-            <div className="flex flex-col gap-3 mb-5">
-              {insights.risk_assessment.map((r, i) => (
-                <div key={i} className="bg-slate-800/40 rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-xs font-bold ${r.severity === "High" ? "text-rose-400" : "text-emerald-400"}`}>{r.title}</span>
-                  </div>
-                  <p className="text-[11px] text-slate-400">{r.insight}</p>
-                </div>
-              ))}
-            </div>
-            <h3 className="text-sm font-semibold text-slate-300 mb-3">Budget Recommendations</h3>
-            <div className="flex flex-col gap-2">
-              {insights.budget_recommendations.map((b, i) => (
-                <div key={i} className="flex items-start gap-3 text-xs bg-slate-800/40 rounded-lg px-3 py-2">
-                  <span className="font-bold text-sky-400 w-20 shrink-0">{b.channel}</span>
-                  <span className={`font-semibold shrink-0 ${b.action.includes("Increase") ? "text-emerald-400" : b.action.includes("Maintain") ? "text-amber-400" : "text-sky-400"}`}>{b.action}</span>
-                  <span className="text-slate-400">{b.rationale}</span>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">{g.insight}</p>
                 </div>
               ))}
             </div>
           </Card>
-        )}
-      </div>
+          <Card>
+            <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2"><AlertTriangle size={14} className="text-amber-400" /> Risk Assessment</h3>
+            <div className="flex flex-col gap-3">
+              {insights.risk_assessment.map((r, i) => (
+                <div key={i} className="bg-slate-800/40 rounded-lg p-3">
+                  <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded font-semibold border mb-1 ${SEVERITY_STYLES[r.severity] ?? "text-slate-300 bg-slate-700/30 border-slate-700"}`}>{r.severity}</span>
+                  <p className="text-xs font-bold text-slate-200 mb-1">{r.title}</p>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">{r.insight}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card>
+            <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2"><DollarSign size={14} className="text-sky-400" /> Budget Recommendations</h3>
+            <div className="flex flex-col gap-2">
+              {insights.budget_recommendations.map((b, i) => (
+                <div key={i} className="bg-slate-800/40 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold text-sky-400 text-xs">{b.channel}</span>
+                    <span className={`text-[11px] font-semibold ${b.action.includes("Increase") ? "text-emerald-400" : b.action.includes("Maintain") ? "text-amber-400" : "text-sky-400"}`}>{b.action}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">{b.rationale}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
       {insights && (
         <Card>
           <h3 className="text-sm font-semibold text-slate-300 mb-2">How This Forecast Was Built</h3>

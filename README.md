@@ -31,7 +31,7 @@ Conforming perfectly to the **Hackathon Submission Guide** contract, our root `.
 * Dynamically detects cross-channel schemas across Google, Meta, and Bing Ads.
 * Standardizes inconsistent campaign naming prefixes and maps time periods to rigorous ISO timestamps.
 * Detects missing values, clips negative spend/revenue anomalies, and identifies outlier auction spikes.
-* Computes an overarching **Data Quality Score** (e.g. `98.2 / 100`) and outputs detailed audit logs.
+* Computes an overarching **Data Quality Score** (100.0 / 100 on a clean pull, deducted per detected issue) and outputs detailed audit logs.
 
 ### 3. Multi-Model Weighted Ensemble Forecasting
 Instead of relying on a single volatile model, ForecastIQ implements an elite weighted ensemble combining:
@@ -81,7 +81,7 @@ Automated generation of a beautifully styled, multi-page professional PDF report
 │   └── executive_forecast_report.pdf # Beautifully formatted ReportLab PDF report
 ├── src/                         # Unified modular Core Python AI Intelligence package
 │   ├── utils.py                 # Failsafe logging, paths, configs
-│   ├── llm_provider.py          # AI Abstraction Layer (BaseLLM, Mock, OpenAI, Gemini, Claude)
+│   ├── llm_provider.py          # AI Abstraction Layer (BaseLLM, Mock, Gemini)
 │   ├── validation.py            # Multi-channel validation engine & Data Quality Score
 │   ├── features.py              # Advanced feature engineering (Lag, volatility, season, shares)
 │   ├── models.py                # Ensemble system (XGBoost, LightGBM, CatBoost, Prophet)
@@ -103,7 +103,7 @@ Automated generation of a beautifully styled, multi-page professional PDF report
     ├── tailwind.config.ts
     └── src/app/
         ├── layout.tsx
-        └── page.tsx             # Master Single-Page 10-Tab SaaS Analytics Dashboard
+        └── page.tsx             # Master Single-Page 9-Tab SaaS Analytics Dashboard
 ```
 
 ---
@@ -134,7 +134,7 @@ $$\text{P90 (Upside)} = \text{P50} + 1.28 \cdot \text{Horizon STD}$$
 * **Limitations:** The engine currently assumes stable macroeconomic base interest rates; drastic sudden supply chain shocks require manually toggling our pre-baked `Recessionary Slump` scenario.
 
 ### 5. AI Integration & Failsafe Abstraction Strategy
-Our `BaseLLMProvider` interface connects to **Google Gemini (2.5 Flash)** (primary), **OpenAI (GPT-4o-Mini)**, or **Anthropic Claude (3 Haiku)** via `.env` API keys. 
+Our `BaseLLMProvider` interface connects to **Google Gemini (2.5 Flash)** via `.env` API key. The abstraction layer is provider-agnostic by design (adding OpenAI/Anthropic support is a single new subclass), but Gemini is the only live integration currently implemented.
 
 **Absolute Failsafe Guarantee:** If no API key is present or if network calls timeout, the application seamlessly routes to an elite **MockLLMProvider**. This offline engine generates pristine, SaaS-grade executive summaries and causal chat insights incorporating exact live metrics with zero downtime.
 
