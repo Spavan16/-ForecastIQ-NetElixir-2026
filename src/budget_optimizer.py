@@ -129,22 +129,38 @@ class BudgetOptimizer:
         #     only sees ~1.6% of spend), scaled so upper bounds always sum to max_budget,
         #     guaranteeing no trial can violate the budget constraint by corner exploration.
         #   - lower bounds: 1% of max_budget floor (always feasible, never zero).
+        # BUG fix (post-launch, found during live optimizer review): the previous version
+        # rescaled all three per-channel upper bounds so they summed to exactly max_budget.
+        # That step wasn't actually needed for feasibility — the objective() penalty below
+        # already rejects any trial where total spend exceeds max_budget — but it had a real
+        # side effect: three channels with roughly similar computed shares (as Google and Meta
+        # often are) got rescaled down to near-identical ceilings, capping the optimizer well
+        # before it could shift meaningfully more budget toward whichever of the two actually
+        # has the higher marginal return. That silently suppressed a better allocation even
+        # though the objective function would have preferred it.
+        #
+        # Fix: keep a tight, historically-derived ceiling ONLY for channels with a genuinely
+        # small historical revenue share (the original intent of BUG 15 — stopping an
+        # unrealistic 70% dump into Bing). Channels with a meaningful historical share get a
+        # much wider, shared ceiling so Optuna can freely equalize marginal returns between
+        # them; the objective's own budget-overflow penalty (not a pre-shrunk bound) is what
+        # keeps the total feasible.
         hist_rev_at_equal_split = {}
         for ch in channels:
             p = self.channel_params[ch]
             trial_sp = max_budget / 3.0
             hist_rev_at_equal_split[ch] = p["alpha"] * (trial_sp ** p["beta"])
         total_hist_rev = sum(hist_rev_at_equal_split.values())
-        upper_bounds = {
-            ch: float(np.clip(
-                (hist_rev_at_equal_split[ch] / total_hist_rev) * max_budget * 2.5,
-                max_budget * 0.02, max_budget * 0.85
-            ))
-            for ch in channels
-        }
-        # Re-scale so upper bounds sum to exactly max_budget
-        ub_sum = sum(upper_bounds.values())
-        upper_bounds = {ch: v / ub_sum * max_budget for ch, v in upper_bounds.items()}
+
+        SMALL_SHARE_THRESHOLD = 0.10  # channels below this get a tight, proxy-derived cap
+        WIDE_CEILING_FRACTION = 0.85  # channels above it can compete for up to 85% of budget
+        upper_bounds = {}
+        for ch in channels:
+            share = hist_rev_at_equal_split[ch] / total_hist_rev
+            if share < SMALL_SHARE_THRESHOLD:
+                upper_bounds[ch] = float(np.clip(share * max_budget * 2.5, max_budget * 0.02, max_budget * 0.15))
+            else:
+                upper_bounds[ch] = max_budget * WIDE_CEILING_FRACTION
         lower_bound = max_budget * 0.01
 
         def objective(trial: optuna.Trial) -> float:

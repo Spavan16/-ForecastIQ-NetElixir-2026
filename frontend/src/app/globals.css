@@ -8,14 +8,55 @@
 }
 
 .dark {
-  --background: #0F172A;
-  --foreground: #F8FAFC;
+  --background: #0E141A;
+  --foreground: #DDE3EB;
+  --surface: #161C22;
+  --surface-border: #2A2E35;
+  /* Restyled again per the Stitch "Premium Refined Dashboard" pass — warm amber/teal on
+     near-black, ported from that export's real hex values. Two accents with DIFFERENT jobs,
+     not blended: teal is the general/nav/status accent (used often, quiet), amber is reserved
+     for exactly one thing — the single hero revenue number — per the "restrained color" fix
+     from the earlier iteration that had six competing accent colors. No backdrop-blur —
+     dropped intentionally even though the Stitch export used it; solid panels only. */
+  --accent-from: #98D2C4;
+  --accent-to: #6FBFAE;
+  --accent-glow: rgba(152, 210, 196, 0.25);
+  --hero-amber: #EDBE90;
+  --hero-amber-glow: rgba(237, 190, 144, 0.3);
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Design-system utilities for the dashboard shell — gradient accent used sparingly (logo
+   mark, active nav state, primary CTA, confidence gauge) per the "spend boldness in one
+   place" principle, everything else stays quiet dark-navy/slate. */
+.gradient-accent {
+  background-image: linear-gradient(135deg, var(--accent-from), var(--accent-to));
+}
+.gradient-accent-text {
+  background-image: linear-gradient(135deg, var(--accent-from), var(--accent-to));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Card hover glow — subtle, matches the "premium fintech terminal" reference. Keeps the
+   existing flat dark card look at rest, only lights up on hover so it doesn't compete with
+   the charts/data for attention. */
+.glow-card {
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.glow-card:hover {
+  border-color: rgba(152, 210, 196, 0.35);
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+.hero-amber {
+  color: var(--hero-amber);
+  text-shadow: 0 0 12px var(--hero-amber-glow);
 }
 
 /* Premium scrollbar styles */

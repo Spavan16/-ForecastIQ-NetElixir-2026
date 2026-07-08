@@ -13,6 +13,9 @@ __pycache__/
 *.pyc
 # NOTE: *.pkl is intentionally NOT excluded — pickle/model.pkl must be committed for hackathon submission
 
+# SQLite run-history DB (src/database.py) — runtime-generated, grows on every backend run
+forecast_iq.db
+
 # Node / Next.js
 frontend/node_modules/
 frontend/.next/

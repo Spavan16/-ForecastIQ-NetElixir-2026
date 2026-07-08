@@ -38,7 +38,7 @@ from src.features import FeatureEngineer
 # rederiving a subset of it by hand.
 feat_engine = FeatureEngineer()
 daily = feat_engine.create_daily_aggregate_features(df)
-print(f"      Daily rows: {len(daily)} | Date range: {daily['date'].min().date()} → {daily['date'].max().date()}")
+print(f"      Daily rows: {len(daily)} | Date range: {daily['date'].min().date()} -> {daily['date'].max().date()}")
 print(f"      Feature columns: {len(daily.columns) - 1} (incl. rolling windows, ROAS, CPC, CTR, volatility, trend)")
 
 # Step 3: Train full ensemble

@@ -106,6 +106,13 @@ class ValidationEngine:
     def validate_google_ads(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
         self._log_issue(f"Starting Google Ads audit ({len(df)} records detected).")
+        original_normalized_cols = {_normalize_column_name(col) for col in df.columns}
+        has_direct_dollar_spend = (
+            "spend" in original_normalized_cols
+            and "metrics_cost_micros" not in original_normalized_cols
+            and "cost_micros" not in original_normalized_cols
+            and "spend_micros" not in original_normalized_cols
+        )
          
         # Define expected columns and their aliases for Google Ads
         google_ads_expected = {
@@ -113,10 +120,10 @@ class ValidationEngine:
             'segments_date': ['segments_date', 'date', 'segment_date'],
             'metrics_clicks': ['metrics_clicks', 'clicks', 'click'],
             'metrics_conversions': ['metrics_conversions', 'conversions', 'conversion'],
-            'metrics_cost_micros': ['metrics_cost_micros', 'cost_micros', 'cost', 'spend_micros'],
+            'metrics_cost_micros': ['metrics_cost_micros', 'cost_micros', 'cost', 'spend_micros', 'spend'],
             'metrics_impressions': ['metrics_impressions', 'impressions', 'impr'],
             'metrics_conversions_value': ['metrics_conversions_value', 'conversions_value', 'value', 'revenue'],
-            'campaign_advertising_channel_type': ['campaign_advertising_channel_type', 'advertising_channel_type', 'channel_type'],
+            'campaign_advertising_channel_type': ['campaign_advertising_channel_type', 'advertising_channel_type', 'channel_type', 'campaign_type'],
             'campaign_name': ['campaign_name', 'name', 'campaign']
         }
         
@@ -142,13 +149,24 @@ class ValidationEngine:
             self._log_issue(f"Imputed {missing_dates} unparseable Google Ads dates.", penalty=2.0)
             df['date'] = df['date'].bfill().fillna(pd.Timestamp('2025-01-01'))
 
-        # Convert spend from micros to dollars
-        df['spend'] = df['metrics_cost_micros'] / 1e6
+        # Convert official Google micros to dollars, but accept simplified mock/test exports
+        # that already provide plain dollar spend in a `spend` column.
+        google_cost = pd.to_numeric(df['metrics_cost_micros'], errors='coerce').fillna(0.0)
+        if has_direct_dollar_spend:
+            df['spend'] = google_cost
+            self._log_issue("Detected Google Ads direct dollar spend column; using spend values without micros conversion.")
+        else:
+            df['spend'] = google_cost / 1e6
         df['revenue'] = df['metrics_conversions_value'].fillna(0.0)
         df['clicks'] = df['metrics_clicks'].fillna(0)
         df['impressions'] = df['metrics_impressions'].fillna(0)
         df['conversions'] = df['metrics_conversions'].fillna(0.0)
-        df['campaign_type'] = df['campaign_advertising_channel_type'].fillna('SEARCH').astype(str).str.upper()
+        df['campaign_type'] = (
+            df['campaign_advertising_channel_type'].fillna('SEARCH').astype(str)
+            .str.replace(r'(?<=[a-z])(?=[A-Z])', '_', regex=True)
+            .str.replace(r'[\s\-]+', '_', regex=True)
+            .str.upper()
+        )
         df['campaign_name'] = df['campaign_name'].fillna('Google_Generic_Campaign').astype(str)
 
         # Detect inconsistent naming & standardize
@@ -172,13 +190,30 @@ class ValidationEngine:
     def validate_meta_ads(self, df: pd.DataFrame, avg_revenue_per_conversion: float = 50.0) -> pd.DataFrame:
         df = df.copy()
         self._log_issue(f"Starting Meta Ads audit ({len(df)} records detected).")
+        original_cols_by_normalized = {_normalize_column_name(col): col for col in df.columns}
+
+        # Meta's official sample names the revenue-like value field `conversion`, while simpler
+        # exports may have both `conversions` (count) and `revenue` (value). Preserve the original
+        # columns before alias standardization so a count column is never mistaken for revenue.
+        revenue_source_col = None
+        for candidate in ["revenue", "conversion_value", "conversions_value", "purchase_value", "value", "conversion"]:
+            if candidate in original_cols_by_normalized:
+                revenue_source_col = original_cols_by_normalized[candidate]
+                break
+        conversion_count_source_col = None
+        for candidate in ["conversions", "conversion_count", "purchases", "purchase_count"]:
+            if candidate in original_cols_by_normalized:
+                conversion_count_source_col = original_cols_by_normalized[candidate]
+                break
+        revenue_source_values = df[revenue_source_col].copy() if revenue_source_col is not None else None
+        conversion_count_source_values = df[conversion_count_source_col].copy() if conversion_count_source_col is not None else None
 
         # Define expected columns and their aliases for Meta Ads
         meta_ads_expected = {
             'campaign_id': ['campaign_id', 'id', 'campaignid'],
             'date_start': ['date_start', 'date', 'start_date'],
             'spend': ['spend', 'cost'],
-            'conversion': ['conversion', 'conversions', 'value', 'revenue'],
+            'conversion': ['conversion', 'revenue', 'conversion_value', 'conversions_value', 'purchase_value', 'value'],
             'clicks': ['clicks', 'click'],
             'impressions': ['impressions', 'impr'],
             'campaign_name': ['campaign_name', 'name', 'campaign']
@@ -206,11 +241,18 @@ class ValidationEngine:
             df['date'] = df['date'].bfill().fillna(pd.Timestamp('2025-01-01'))
 
         df['spend'] = pd.to_numeric(df['spend'], errors='coerce').fillna(0.0)
-        # Note: in Meta data, 'conversion' represents conversion value / revenue
-        df['revenue'] = pd.to_numeric(df['conversion'], errors='coerce').fillna(0.0)
+        if revenue_source_values is not None:
+            df['revenue'] = pd.to_numeric(revenue_source_values, errors='coerce').fillna(0.0)
+            if _normalize_column_name(revenue_source_col) != "conversion":
+                self._log_issue(f"Detected Meta Ads revenue/value column '{revenue_source_col}' and used it for revenue.")
+        else:
+            df['revenue'] = pd.to_numeric(df['conversion'], errors='coerce').fillna(0.0)
         df['clicks'] = pd.to_numeric(df['clicks'], errors='coerce').fillna(0)
         df['impressions'] = pd.to_numeric(df['impressions'], errors='coerce').fillna(0)
-        df['conversions'] = df['revenue'] / avg_revenue_per_conversion  # estimated: Meta's raw export has no conversion-count column, only a revenue-like value field
+        if conversion_count_source_values is not None and conversion_count_source_col != revenue_source_col:
+            df['conversions'] = pd.to_numeric(conversion_count_source_values, errors='coerce').fillna(0.0)
+        else:
+            df['conversions'] = df['revenue'] / avg_revenue_per_conversion  # estimated when Meta export has no conversion-count column
         df['campaign_type'] = 'SOCIAL'
         df['campaign_name'] = df['campaign_name'].fillna('Meta_Generic_Campaign').astype(str)
         df['channel'] = 'Meta Ads'
@@ -397,6 +439,7 @@ class ValidationEngine:
         validation_summary = {
             "total_records": len(unified_df),
             "channels_ingested": unified_df['channel'].unique().tolist(),
+            "channel_record_counts": unified_df['channel'].value_counts().to_dict(),
             "min_date": unified_df['date'].min().strftime("%Y-%m-%d"),
             "max_date": unified_df['date'].max().strftime("%Y-%m-%d"),
             "total_spend": float(unified_df['spend'].sum()),
