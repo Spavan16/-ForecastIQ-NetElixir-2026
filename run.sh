@@ -2,7 +2,7 @@
 # ==============================================================================
 # NetElixir AIgnition 2026 Hackathon Challenge Submission
 # Project: ForecastIQ — Marketing Revenue Forecasting & Budget Optimization Pipeline
-# Team: TEAM_NAME_HERE | MEMBER_1, MEMBER_2, MEMBER_3 | COLLEGE_NAME
+# Team: Team ForecastIQ | Pavan Kumar S (ENG24AD0047), Rohindth | Dayananda Sagar University, Bengaluru
 # Contract: ./run.sh <DATA_DIR> <MODEL_PATH> <OUTPUT_PATH>
 # ==============================================================================
 
@@ -27,12 +27,13 @@ export PYTHONPATH="$SCRIPT_DIR"
 # `python3` call fails outright on a stock Windows venv (confirmed: this venv's Scripts/
 # folder has python.exe but no python3.exe). Prefer python3 where it exists (keeps Linux/Mac
 # behavior unchanged), fall back to python otherwise.
-if command -v python3 >/dev/null 2>&1; then
+if command -v python3 >/dev/null 2>&1 && python3 -c "import xgboost, lightgbm, catboost, prophet, optuna, shap, reportlab" 2>/dev/null; then
     PYTHON_BIN="python3"
-elif command -v python >/dev/null 2>&1; then
+elif command -v python >/dev/null 2>&1 && python -c "import xgboost, lightgbm, catboost, prophet, optuna, shap, reportlab" 2>/dev/null; then
     PYTHON_BIN="python"
 else
-    echo "ERROR: No Python interpreter found on PATH (checked python3, python)."
+    echo "ERROR: No Python interpreter with required packages found on PATH (checked python3, python)."
+    echo "Run: pip install -r requirements.txt"
     exit 1
 fi
 
