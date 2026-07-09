@@ -81,8 +81,8 @@ def _standardize_columns_with_aliases(df: pd.DataFrame, expected_cols_aliases: D
 
 class ValidationEngine:
     """
-    Elite Data Ingestion & Validation Engine for ForecastIQ.
-    Executes deep multi-channel audits, outlier detection, schema matching, and computes a rigorous Data Quality Score.
+    Data Ingestion & Validation Engine for ForecastIQ.
+    Runs multi-channel audits, outlier detection, schema matching, and computes a Data Quality Score.
     """
     def __init__(self, data_dir: Path = DATA_DIR):
         self.data_dir = data_dir
@@ -343,7 +343,7 @@ class ValidationEngine:
     def run_full_ingestion(self) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
         Orchestrates full ingestion of all available CSVs.
-        Returns the unified pristine DataFrame and a comprehensive validation summary dictionary.
+        Returns the unified DataFrame and a validation summary dictionary.
         """
         # BUG fix: pathlib.Path.glob() is case-sensitive on Linux (the actual grading OS).
         # "*google*.*csv*" only matches lowercase filenames; a held-out file named e.g.

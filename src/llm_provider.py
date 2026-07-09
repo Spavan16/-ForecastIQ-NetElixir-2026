@@ -32,8 +32,8 @@ class BaseLLMProvider(ABC):
 
 class MockLLMProvider(BaseLLMProvider):
     """
-    Highly reliable offline Mock provider. 
-    Guarantees no crashes, works 100% offline, and returns pristine SaaS-grade executive summaries.
+    Offline mock provider. Guarantees no crashes and works fully offline, returning
+    template-based executive summaries when no LLM API key is configured.
     """
     def generate_insight(self, prompt: str, context: Optional[Dict[str, Any]] = None) -> str:
         # Generate rich contextual responses if context is provided

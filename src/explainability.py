@@ -9,7 +9,7 @@ logger = get_logger("ExplainabilityEngine")
 
 class ExplainabilityEngine:
     """
-    Elite Production Explainability Engine for ForecastIQ.
+    Explainability Engine for ForecastIQ.
     Leverages SHAP (SHapley Additive exPlanations) to decode exact causal impacts,
     extracting Top Revenue Drivers, Top ROAS Drivers, Channel Importance, and Campaign Importance.
     """

@@ -32,8 +32,8 @@ from src.database import DatabaseManager
 from src.utils import get_logger
 
 app = FastAPI(
-    title="ForecastIQ Enterprise AI API",
-    description="Production-grade FastAPI Backend for NetElixir AIgnition 2026 Challenge",
+    title="ForecastIQ API",
+    description="FastAPI backend for the ForecastIQ revenue forecasting & budget optimization platform, built for NetElixir AIgnition 2026.",
     version="1.0.0"
 )
 

@@ -9,7 +9,7 @@ from src.utils import get_logger
 logger = get_logger("CLI_PredictEngine")
 
 def main():
-    parser = argparse.ArgumentParser(description="ForecastIQ Elite Multi-Horizon Forecasting CLI")
+    parser = argparse.ArgumentParser(description="ForecastIQ Multi-Horizon Forecasting CLI")
     parser.add_argument("--features", type=str, default="features.pkl", help="Input feature artifact file (Parquet/Pickle/CSV).")
     parser.add_argument("--model", type=str, default="./pickle/model.pkl", help="Path to pickled ensemble model.")
     parser.add_argument("--output", type=str, default="./output/predictions.csv", help="Where to write predictions.csv.")
@@ -67,12 +67,19 @@ def main():
             logger.error(f"Fatal exception during instant backup training: {str(e)}")
             sys.exit(1)
 
+    # BUG fix: recompute recent_baselines/last_known_engineered from the actual held-out
+    # data now in `df`, so the forecast anchors to real current conditions instead of
+    # silently replaying whatever was true when model.pkl was last trained locally. Does
+    # not retrain any model — see refresh_recent_context() docstring for why this is safe
+    # under the "we do not retrain" contract.
+    forecaster.refresh_recent_context(df)
+
     # Produce COMPLETE Master Output CSV
     try:
         master_preds_df = forecaster.produce_full_predictions_table(start_date)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         master_preds_df.to_csv(out_path, index=False)
-        logger.info(f"Pristine multi-dimensional probabilistic predictions successfully exported to {out_path}")
+        logger.info(f"Multi-dimensional probabilistic predictions successfully exported to {out_path}")
     except Exception as e:
         logger.error(f"Fatal error generating master predictions CSV: {str(e)}")
         sys.exit(1)

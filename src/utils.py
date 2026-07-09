@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from typing import Dict, Any
 
-# Setup elite professional logging
+# Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",

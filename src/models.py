@@ -18,7 +18,7 @@ logger = get_logger("ForecastingEnsemble")
 
 class EnsembleForecaster:
     """
-    Elite Production Ensemble System for ForecastIQ.
+    Ensemble Forecasting System for ForecastIQ.
     Combines XGBoost, LightGBM, CatBoost, and Prophet via weighted averaging.
     Generates multi-dimensional forecasts (Overall, Channel, CampaignType, Campaign)
     with rigorous P10, P50, P90 probabilistic confidence intervals.
@@ -251,6 +251,64 @@ class EnsembleForecaster:
         logger.info(
             f"Complete ForecastIQ Ensemble Architecture successfully trained. "
             f"Channels={self.trained_channels} CampaignTypes={self.trained_campaign_types}"
+        )
+
+    def refresh_recent_context(self, unified_df: pd.DataFrame) -> None:
+        """
+        Lightweight, non-training refresh of the forecast's "recent conditions" anchor —
+        recent_baselines (blended in at model_blend_weight, e.g. 25% model / 75% baseline
+        by default) and last_known_engineered (carried forward into every future feature
+        row) — from whatever is actually sitting in data/ at prediction time.
+
+        BUG fix (found via held-out-data robustness testing): predict.py previously called
+        produce_full_predictions_table() right after load_models() with no step in between,
+        so recent_baselines/last_known_engineered stayed exactly as pickled at the last local
+        training run. Verified concretely: two predict.py runs against genuinely different
+        held-out data (different sampled rows, different actual revenue/spend totals) produced
+        BYTE-IDENTICAL Overall forecasts, because the new data's real spend/revenue never
+        reached the forecast math — only max(date) did, via start_date. Given the hackathon's
+        held-out set could represent meaningfully different business conditions than whatever
+        was true on this machine when model.pkl was last trained, that's an accuracy risk, not
+        just a cosmetic one.
+
+        This method does NOT retrain any model (no .fit() calls, self.models is untouched),
+        so it stays fully compliant with the hackathon contract ("we do not retrain... the
+        test run only generates features and predicts") — it only updates the numeric anchor
+        a frozen model's output gets blended against, so the forecast actually reflects the
+        held-out data's real recent level instead of silently replaying training-time numbers.
+
+        Any dimension key not present in the new data simply keeps its pickled baseline, so
+        partial or unfamiliar held-out data degrades gracefully rather than crashing.
+        """
+        if unified_df is None or unified_df.empty or 'date' not in unified_df.columns:
+            return
+
+        daily_overall = unified_df.groupby('date').agg({'revenue': 'sum', 'spend': 'sum'}).reset_index()
+        if daily_overall.empty:
+            return
+        self.recent_baselines["overall"] = self._recent_baseline(daily_overall)
+
+        engineered_cols = [c for c in self.feature_columns if c not in self.BASE_TIME_FEATURES]
+        available = [c for c in engineered_cols if c in unified_df.columns]
+        if available:
+            last_row = unified_df.sort_values('date').iloc[-1]
+            self.last_known_engineered.update({c: float(last_row[c]) for c in available})
+
+        # Same key format as train_dimension_models(), so forecast_dimension()'s lookups
+        # (which strip "_revenue" off the model key) still resolve correctly.
+        for col, prefix in [("channel", "channel"), ("campaign_type", "ctype"), ("campaign_name", "camp")]:
+            if col not in unified_df.columns:
+                continue
+            for value in unified_df[col].dropna().unique():
+                daily_sub = unified_df[unified_df[col] == value].groupby('date').agg(
+                    {'revenue': 'sum', 'spend': 'sum'}
+                ).reset_index()
+                if not daily_sub.empty:
+                    self.recent_baselines[f"{prefix}_{value}"] = self._recent_baseline(daily_sub)
+
+        logger.info(
+            f"Refreshed recent-context baselines from held-out prediction-time data "
+            f"({len(self.recent_baselines)} dimension keys now anchored to actual recent spend/revenue)."
         )
 
     def save_models(self) -> Path:

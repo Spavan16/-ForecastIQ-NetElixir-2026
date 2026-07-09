@@ -7,17 +7,17 @@ logger = get_logger("RiskIntelligenceEngine")
 
 class RiskIntelligenceEngine:
     """
-    Elite Production Risk Intelligence Engine for ForecastIQ.
+    Risk Intelligence Engine for ForecastIQ.
     Computes an overarching Risk Score (0-100) by analyzing Revenue Volatility,
     Channel Dependency, ROAS Instability, and Data Quality Issues.
-    Returns executive Risk Classification (Low Risk, Medium Risk, High Risk) and tactical mitigation strategies.
+    Returns a Risk Classification (Low Risk, Medium Risk, High Risk) and mitigation suggestions.
     """
     def __init__(self, historical_df: pd.DataFrame, data_quality_score: float):
         self.historical_df = historical_df
         self.data_quality_score = data_quality_score
 
     def evaluate_risk(self) -> Dict[str, Any]:
-        logger.info("Executing Enterprise Risk Intelligence Evaluation...")
+        logger.info("Evaluating portfolio risk...")
         
         # 1. Revenue Volatility Score — weekly granularity (daily is too noisy for ad spend)
         weekly_rev = self.historical_df.groupby(pd.Grouper(key='date', freq='W'))['revenue'].sum()

@@ -77,7 +77,7 @@ class Report(Base):
 
 class DatabaseManager:
     """
-    Elite Production SQLite Database Manager for ForecastIQ.
+    SQLite Database Manager for ForecastIQ.
     Handles sessions, schema migrations, and persistent analytical run storage.
     """
     def __init__(self, db_path: Path = DB_PATH):

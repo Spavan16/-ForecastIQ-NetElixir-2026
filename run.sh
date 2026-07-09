@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # NetElixir AIgnition 2026 Hackathon Challenge Submission
-# Project: ForecastIQ — Enterprise AI Revenue Intelligence Platform
+# Project: ForecastIQ — Marketing Revenue Forecasting & Budget Optimization Pipeline
 # Team: TEAM_NAME_HERE | MEMBER_1, MEMBER_2, MEMBER_3 | COLLEGE_NAME
 # Contract: ./run.sh <DATA_DIR> <MODEL_PATH> <OUTPUT_PATH>
 # ==============================================================================
@@ -49,7 +49,7 @@ MODEL_PATH="${2:-./pickle/model.pkl}"
 OUTPUT_PATH="${3:-./output/predictions.csv}"
 
 echo "=============================================================================="
-echo "ForecastIQ Enterprise Automated Evaluation Pipeline"
+echo "ForecastIQ Evaluation Pipeline"
 echo "DATA_DIR:    $DATA_DIR"
 echo "MODEL_PATH:  $MODEL_PATH"
 echo "OUTPUT_PATH: $OUTPUT_PATH"
@@ -72,5 +72,5 @@ echo "[2/2] Loading pickled ensemble models & computing probabilistic prediction
     --output "$OUTPUT_PATH"
 
 echo "=============================================================================="
-echo "Done. Complete HACKATHON-WINNING predictions successfully written to $OUTPUT_PATH"
+echo "Done. Predictions successfully written to $OUTPUT_PATH"
 echo "=============================================================================="

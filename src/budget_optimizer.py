@@ -10,7 +10,7 @@ optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 class BudgetOptimizer:
     """
-    Elite Optuna Budget Optimization Engine for ForecastIQ.
+    Optuna Budget Optimization Engine for ForecastIQ.
     Maximizes total eCommerce revenue subject to Target ROAS and Maximum Budget constraints.
     Models diminishing marginal returns for paid acquisition channels at the aggregate monthly/planning horizon level.
     """

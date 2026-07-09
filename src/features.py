@@ -7,7 +7,7 @@ logger = get_logger("FeatureEngineering")
 
 class FeatureEngineer:
     """
-    Elite Feature Engineering Suite for ForecastIQ.
+    Feature Engineering Suite for ForecastIQ.
     Constructs rich Time, Performance, Marketing, Channel, and Volatility features.
     """
     def __init__(self, rolling_windows: List[int] = None):
@@ -130,7 +130,7 @@ class FeatureEngineer:
         channel_features = self.create_channel_features(unified_df)
         campaign_features = self.create_campaign_features(unified_df)
 
-        logger.info("Elite Feature Engineering pipeline successfully executed.")
+        logger.info("Feature engineering pipeline completed successfully.")
         return {
             "daily": daily_features,
             "channel": channel_features,

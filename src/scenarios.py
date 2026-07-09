@@ -7,7 +7,7 @@ logger = get_logger("ScenarioGenerator")
 
 class ScenarioGenerator:
     """
-    Elite Scenario Generator Suite for ForecastIQ.
+    Scenario Generator for ForecastIQ.
     Generates 7 core eCommerce business scenarios and recalculates multi-horizon revenue & ROAS forecasts.
     """
     def __init__(self, base_predictions_30d: Dict[str, float], base_predictions_60d: Dict[str, float], base_predictions_90d: Dict[str, float], base_revenue_volatility: float = 0.15):

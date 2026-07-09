@@ -11,7 +11,7 @@ from src.utils import get_logger
 logger = get_logger("CLI_GenerateFeatures")
 
 def main():
-    parser = argparse.ArgumentParser(description="ForecastIQ Elite Feature Generation Pipeline")
+    parser = argparse.ArgumentParser(description="ForecastIQ Feature Generation Pipeline")
     parser.add_argument("--data-dir", type=str, default="./data", help="Directory containing input channel CSV files.")
     parser.add_argument("--out", type=str, default="features.pkl", help="Output Parquet/Pickle/CSV feature file path.")
     args = parser.parse_args()
@@ -75,7 +75,7 @@ def main():
             enriched_df.to_csv(out_path, index=False)
         else:
             enriched_df.to_pickle(out_path)
-        logger.info(f"Pristine feature artifact successfully written to {out_path}")
+        logger.info(f"Feature artifact successfully written to {out_path}")
     except Exception as e:
         logger.error(f"Error saving feature file: {str(e)}. Forcing universal backup saving.")
         backup_path = out_path.parent / "features_backup.pkl"

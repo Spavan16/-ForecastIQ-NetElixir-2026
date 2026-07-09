@@ -24,8 +24,8 @@ def derive_revenue_volatility(residual_std_daily: Optional[float], base_revenue:
 
 class MonteCarloSimulator:
     """
-    Elite Production Monte Carlo Engine for ForecastIQ.
-    Executes 10,000 rigorous stochastic paths to model exact revenue, ROAS, 
+    Monte Carlo Simulation Engine for ForecastIQ.
+    Executes 10,000 stochastic paths to model revenue, ROAS,
     and channel distribution uncertainties. Produces Worst, Expected, and Best Case intelligence.
     """
     def __init__(self, n_simulations: int = 10000):

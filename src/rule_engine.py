@@ -6,10 +6,10 @@ logger = get_logger("RuleInsightEngine")
 
 class RuleInsightEngine:
     """
-    Elite Production Rule-Based Executive Insight Engine for ForecastIQ.
-    Functions 100% Offline (No API Keys Required).
+    Rule-Based Insight Engine for ForecastIQ.
+    Functions fully offline (no API keys required).
     Synthesizes historical trends, probabilistic ensemble forecasts, and volatility profiles
-    into pristine executive intelligence across 5 critical enterprise areas.
+    into plain-English insights across 5 focus areas.
     """
     def __init__(self, historical_df: pd.DataFrame, forecast_90d: Dict[str, Any], risk_profile: Dict[str, Any]):
         self.historical_df = historical_df
@@ -17,7 +17,7 @@ class RuleInsightEngine:
         self.risk_profile = risk_profile
 
     def generate_all_insights(self) -> Dict[str, Any]:
-        logger.info("Executing Enterprise Rule-Based Insight Synthesis (100% Offline Mode)...")
+        logger.info("Generating rule-based insights (offline mode)...")
 
         # Analytical variables for rule triggers
         total_spend = self.historical_df['spend'].sum()
