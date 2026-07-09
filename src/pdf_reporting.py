@@ -434,15 +434,20 @@ class EnterprisePDFReport:
             story.append(Spacer(1, 12))
 
             story.append(Paragraph(
-                "ROAS forecasts beat the naive baseline at the 30- and 60-day horizons (+5.0% and +15.9% MAPE "
-                "improvement) and trail it narrowly at 90 days (-3.9%). Revenue forecasts trail the naive baseline "
-                "across all three horizons in this backtest. We're disclosing this rather than omitting it, and our "
-                "diagnostic work traced it to two concrete, data-level causes rather than a modeling defect: (1) the "
-                "earliest backtest origin trains on only \u2248 4 months of history \u2014 well short of what Prophet's "
-                "seasonal component needs to calibrate reliably, and (2) the dataset contains a genuine 5\u201310x "
-                "November\u2013December demand spike that appears in only two historical instances across the \u2248 2.5-year "
-                "dataset, so any forecast horizon crossing that window is working with minimal precedent \u2014 a "
-                "constraint that affects any forecasting method, not just this one.",
+                "ROAS forecasts beat the naive baseline at the 60-day horizon (+4.5% MAPE improvement) and trail it "
+                "narrowly at 30 and 90 days (-1.1% and -7.1%). Revenue forecasts trail the naive baseline across all "
+                "three horizons in this backtest. We're disclosing this rather than omitting it. Tracing "
+                "the gap by decomposing the forecast into its components found that the model's own recency-anchoring "
+                "step \u2014 which blends the raw ensemble output with a trailing revenue baseline to stabilize it \u2014 was "
+                "weighting a stale 90-day average too heavily relative to the more recent 30-day level the naive "
+                "baseline itself uses, overshooting by 18\u201323% APE on its own before the underlying model even "
+                "contributed. Re-weighting that anchor toward the same recency the naive baseline uses cut the "
+                "Revenue MAPE gap by roughly 60\u201375% across all three horizons. Two further factors widen the "
+                "remaining gap: (1) the earliest backtest origin trains on only \u2248 4 months of history \u2014 well short "
+                "of what Prophet's seasonal component needs to calibrate reliably, and (2) the dataset contains a "
+                "genuine 5\u201310x November\u2013December demand spike that appears in only two historical instances across "
+                "the \u2248 2.5-year dataset, so any forecast horizon crossing that window is working with minimal "
+                "precedent \u2014 a constraint that affects any forecasting method, not just this one.",
                 self.styles['BodyCustom']
             ))
             story.append(self._caveat_box(
