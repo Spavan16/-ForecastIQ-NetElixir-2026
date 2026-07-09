@@ -16,6 +16,10 @@ __pycache__/
 # SQLite run-history DB (src/database.py) — runtime-generated, grows on every backend run
 forecast_iq.db
 
+# CatBoost training logs — auto-regenerated on every train run (catboost_training.json,
+# events.out.tfevents, time_left.tsv), pure noise in diffs, not meaningful submission content.
+catboost_info/
+
 # Node / Next.js
 frontend/node_modules/
 frontend/.next/

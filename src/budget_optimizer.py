@@ -115,6 +115,13 @@ class BudgetOptimizer:
 
     def optimize_allocation(self, max_budget: float, target_roas: float, n_trials: int = 300) -> Dict[str, Any]:
         """Runs Optuna optimization to find the exact global spend allocation across Google, Meta, and Bing."""
+        # Guard: max_budget <= 0 would make every per-channel upper bound derive from a
+        # 0/0 revenue-share division below (hist_rev_at_equal_split all zero -> total_hist_rev
+        # zero -> NaN share), which either crashes or silently produces garbage bounds passed
+        # to Optuna. Fail loudly and immediately instead.
+        if max_budget <= 0:
+            raise ValueError(f"max_budget must be positive, got {max_budget}")
+
         logger.info(f"Running Optuna Budget Optimization (Max Budget: ${max_budget:,.0f}, Target ROAS: {target_roas}x)...")
 
         channels = ["Google Ads", "Meta Ads", "Bing Ads"]
@@ -248,12 +255,29 @@ class BudgetOptimizer:
             "roas_p90": float(overall_opt_roas * (1.0 + band_factor))
         }
 
+        # BUG fix: optimize_allocation previously had no feasibility check on its own output.
+        # objective() penalizes trials where roas < target_roas, but if no sampled trial ever
+        # clears that bar (e.g. target_roas is high enough that diminishing returns make it
+        # unreachable within max_budget), Optuna still returns study.best_params — whichever
+        # trial had the least-negative penalty — and this function packaged it into a result
+        # that looked identical to a genuinely feasible recommendation, with no signal that
+        # the target wasn't actually met. Surface that explicitly instead of silently
+        # returning an under-target allocation as if it were a success.
+        target_achievable = bool(overall_opt_roas >= target_roas)
+
         results = {
             "max_budget": float(max_budget),
             "target_roas": float(target_roas),
             "recommended_total_spend": float(total_opt_spend),
             "expected_total_revenue": float(total_opt_rev),
             "expected_total_roas": overall_opt_roas,
+            "target_achievable": target_achievable,
+            "target_achievement_note": (
+                None if target_achievable else
+                f"Target ROAS of {target_roas}x could not be met within a ${max_budget:,.0f} budget "
+                f"given current channel efficiency curves. Best achievable ROAS at this budget is "
+                f"~{overall_opt_roas:.2f}x. Consider lowering the target ROAS or reducing the budget."
+            ),
             "channel_recommendations": channel_breakdown,
             "confidence_range": conf_range
         }
