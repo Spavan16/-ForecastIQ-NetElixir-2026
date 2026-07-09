@@ -98,7 +98,7 @@ class MockLLMProvider(BaseLLMProvider):
             )
 
     def get_provider_name(self) -> str:
-        return "MockLLMProvider (100% Offline SaaS Utility)"
+        return "MockLLMProvider (offline fallback)"
 
 
 class GeminiProvider(BaseLLMProvider):
@@ -108,7 +108,16 @@ class GeminiProvider(BaseLLMProvider):
         self.endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={self.api_key}"
 
     def generate_insight(self, prompt: str, context: Optional[Dict[str, Any]] = None) -> str:
-        full_prompt = f"System: You are an elite Marketing Solutions Architect for ForecastIQ.\nAnalytics: {context}\nPrompt: {prompt}"
+        full_prompt = (
+            "System: You are a marketing analytics assistant for ForecastIQ, a revenue "
+            "forecasting and budget optimization platform. Write in a clear, professional, "
+            "consultative tone \u2014 no hype, no exclamation points, no superlatives like "
+            "'elite' or 'world-class'. Base every claim strictly on the analytics data "
+            "provided below; do not invent numbers or channels that aren't present in it. "
+            "Keep the response concise (3-5 sentences unless the question calls for more) "
+            "and use plain prose, not markdown headers or bullet lists.\n"
+            f"Analytics: {context}\nPrompt: {prompt}"
+        )
         data = {
             "contents": [{"parts": [{"text": full_prompt}]}]
         }
@@ -129,7 +138,17 @@ class GeminiProvider(BaseLLMProvider):
         return MockLLMProvider().generate_insight(prompt, context)
 
     def ask_question(self, question: str, analytics_context: Dict[str, Any]) -> str:
-        full_prompt = f"System: You are an elite marketing intelligence SaaS chatbot.\nAnalytics: {analytics_context}\nQuestion: {question}"
+        full_prompt = (
+            "System: You are a marketing analytics assistant embedded in ForecastIQ, "
+            "answering a question from the person viewing their own revenue/ROAS dashboard. "
+            "Write in a clear, professional, consultative tone \u2014 no hype, no exclamation "
+            "points, no superlatives like 'elite' or 'world-class'. Base every claim strictly "
+            "on the analytics context provided below; do not invent numbers, channels, or "
+            "campaigns that aren't present in it, and say so plainly if the data doesn't "
+            "support a confident answer. Keep the response concise (3-5 sentences unless the "
+            "question calls for more) and use plain prose, not markdown headers or bullet lists.\n"
+            f"Analytics: {analytics_context}\nQuestion: {question}"
+        )
         data = {
             "contents": [{"parts": [{"text": full_prompt}]}]
         }
@@ -159,5 +178,5 @@ def get_llm_provider() -> BaseLLMProvider:
         logger.info("Auto-detected GEMINI_API_KEY in environment.")
         return GeminiProvider(os.getenv("GEMINI_API_KEY"))
     else:
-        logger.info("No paid API keys detected. Switching to elite MockLLMProvider (100% Offline Mode).")
+        logger.info("No paid API keys detected. Falling back to MockLLMProvider (offline mode).")
         return MockLLMProvider()
