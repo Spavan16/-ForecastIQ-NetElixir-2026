@@ -33,8 +33,12 @@ class ExplainabilityEngine:
         daily['month'] = daily['date'].dt.month
         daily['day_of_week'] = daily['date'].dt.dayofweek
 
-        # Encode channel
-        channel_map = {'Google Ads': 1, 'Meta Ads': 2, 'Bing Ads': 3}
+        # BUG fix (bug-hunt sweep, same class as the frozen-dimension predictions bug):
+        # channel_map was hardcoded to exactly 3 channels, with .fillna(0) meaning any
+        # channel outside that set collapsed to the same code (0) as every other unseen
+        # channel — indistinguishable from each other in this SHAP feature. Derive the
+        # encoding from whatever channels are actually present in the data instead.
+        channel_map = {ch: i + 1 for i, ch in enumerate(sorted(daily['channel'].dropna().unique()))}
         daily['channel_encoded'] = daily['channel'].map(channel_map).fillna(0)
 
         features = ['spend', 'clicks', 'impressions', 'cpc', 'ctr', 'month', 'day_of_week', 'channel_encoded']
