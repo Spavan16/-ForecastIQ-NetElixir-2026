@@ -34,7 +34,16 @@ class BudgetOptimizer:
             monthly = df_c.groupby('year_month').agg({'spend': 'sum', 'revenue': 'sum'}).reset_index()
             monthly = monthly[monthly['spend'] > 0]
             
-            beta = 0.85 if ch == 'Google Ads' else (0.82 if ch == 'Meta Ads' else 0.78)
+            # BUG fix (bug-hunt sweep, same class as the frozen-dimension predictions bug):
+            # beta previously matched by hardcoded channel name, so any channel outside
+            # {Google Ads, Meta Ads, Bing Ads} — e.g. a channel only present in held-out/mock
+            # grading data — silently fell through to Bing's 0.78 regardless of its own
+            # efficiency profile. Keep the three calibrated values for the channels we've
+            # actually validated (output for existing data is unchanged), fall back to a
+            # single documented default for any other channel instead of mis-attributing
+            # Bing's curve to it.
+            _KNOWN_BETAS = {"Google Ads": 0.85, "Meta Ads": 0.82, "Bing Ads": 0.78}
+            beta = _KNOWN_BETAS.get(ch, 0.80)
             
             if len(monthly) > 0:
                 avg_monthly_sp = monthly['spend'].mean()
@@ -75,23 +84,41 @@ class BudgetOptimizer:
 
             self.channel_params[ch] = {"alpha": alpha, "beta": beta, "base_roas": overall_roas, "fit_cv": fit_cv}
 
-        # Ensure required channels exist
-        for required_ch in ["Google Ads", "Meta Ads", "Bing Ads"]:
-            if required_ch not in self.channel_params:
-                self.channel_params[required_ch] = {"alpha": 25.0, "beta": 0.82, "base_roas": 4.5, "fit_cv": 0.15}
+        # BUG fix (bug-hunt sweep): this used to force-add exactly ["Google Ads","Meta Ads",
+        # "Bing Ads"] with fabricated defaults, AND that hardcoded list was the only channel
+        # set every method below (simulate_budget_change, optimize_allocation) ever iterated
+        # over — so a real channel present in historical_df (fitted correctly just above via
+        # the data-driven groupby) got silently discarded downstream the moment held-out/mock
+        # grading data introduced a 4th channel. self.channels is now the single canonical,
+        # data-derived list every method in this class iterates over.
+        self.channels = sorted(self.channel_params.keys())
+        if not self.channels:
+            # Genuinely empty historical data: fall back to the three channels this product
+            # ships with by default so the optimizer has a non-empty search space instead of
+            # crashing outright.
+            self.channels = ["Google Ads", "Meta Ads", "Bing Ads"]
+            for ch in self.channels:
+                self.channel_params[ch] = {"alpha": 25.0, "beta": 0.82, "base_roas": 4.5, "fit_cv": 0.15}
 
-    def simulate_budget_change(self, google_pct: float, meta_pct: float, bing_pct: float, base_spend: Dict[str, float]) -> Dict[str, Any]:
+    def simulate_budget_change(self, channel_pcts: Dict[str, float], base_spend: Dict[str, float]) -> Dict[str, Any]:
         """
         Executes real-time budget scenario simulation.
+        channel_pcts: {channel_name: pct_change}. Any channel in base_spend not present in
+        channel_pcts is treated as 0% change.
+
+        BUG fix (bug-hunt sweep): previously took three fixed named args
+        (google_pct/meta_pct/bing_pct), which made a 4th channel structurally impossible to
+        simulate no matter what base_spend contained. Same failure class as the frozen-
+        dimension predictions bug — now takes any set of channels.
+
         Returns live recalculated Revenue, ROAS, and channel contributions.
         """
-        changes = {"Google Ads": google_pct, "Meta Ads": meta_pct, "Bing Ads": bing_pct}
         total_rev = 0.0
         total_spend = 0.0
         contributions = {}
 
         for ch, spend in base_spend.items():
-            pct = changes.get(ch, 0.0)
+            pct = channel_pcts.get(ch, 0.0)
             new_spend = max(100.0, spend * (1.0 + pct / 100.0))
             
             params = self.channel_params.get(ch, {"alpha": 25.0, "beta": 0.82})
@@ -114,7 +141,7 @@ class BudgetOptimizer:
         }
 
     def optimize_allocation(self, max_budget: float, target_roas: float, n_trials: int = 300) -> Dict[str, Any]:
-        """Runs Optuna optimization to find the exact global spend allocation across Google, Meta, and Bing."""
+        """Runs Optuna optimization to find the exact global spend allocation across every channel present in the historical data."""
         # Guard: max_budget <= 0 would make every per-channel upper bound derive from a
         # 0/0 revenue-share division below (hist_rev_at_equal_split all zero -> total_hist_rev
         # zero -> NaN share), which either crashes or silently produces garbage bounds passed
@@ -124,7 +151,13 @@ class BudgetOptimizer:
 
         logger.info(f"Running Optuna Budget Optimization (Max Budget: ${max_budget:,.0f}, Target ROAS: {target_roas}x)...")
 
-        channels = ["Google Ads", "Meta Ads", "Bing Ads"]
+        # BUG fix (bug-hunt sweep, same class as the frozen-dimension predictions bug):
+        # previously hardcoded to exactly ["Google Ads","Meta Ads","Bing Ads"]. Any channel
+        # actually present in historical_df (and correctly fitted in self.channel_params by
+        # _fit_channel_efficiency) got silently excluded from optimization — the allocator
+        # would confidently return a "complete" result that simply never considered a whole
+        # channel's spend/revenue potential. Now uses the real, data-derived channel list.
+        channels = self.channels
 
         # BUG 15 fix: the old hardcoded Optuna search bounds had a maximum sum of
         # 0.7+0.5+0.25=1.45x of max_budget, meaning most trials hit the budget-exceeded
@@ -155,7 +188,7 @@ class BudgetOptimizer:
         hist_rev_at_equal_split = {}
         for ch in channels:
             p = self.channel_params[ch]
-            trial_sp = max_budget / 3.0
+            trial_sp = max_budget / len(channels)
             hist_rev_at_equal_split[ch] = p["alpha"] * (trial_sp ** p["beta"])
         total_hist_rev = sum(hist_rev_at_equal_split.values())
 
@@ -171,15 +204,16 @@ class BudgetOptimizer:
         lower_bound = max_budget * 0.01
 
         def objective(trial: optuna.Trial) -> float:
-            spend_g = trial.suggest_float("spend_Google Ads", lower_bound, upper_bounds["Google Ads"])
-            spend_m = trial.suggest_float("spend_Meta Ads",  lower_bound, upper_bounds["Meta Ads"])
-            spend_b = trial.suggest_float("spend_Bing Ads",  lower_bound, upper_bounds["Bing Ads"])
+            # BUG fix (bug-hunt sweep): previously three fixed trial.suggest_float calls
+            # named after Google/Meta/Bing specifically, structurally incapable of proposing
+            # spend for any other channel. Now suggests one value per entry in the real,
+            # data-derived `channels` list.
+            spends = {ch: trial.suggest_float(f"spend_{ch}", lower_bound, upper_bounds[ch]) for ch in channels}
 
-            total_sp = spend_g + spend_m + spend_b
+            total_sp = sum(spends.values())
             if total_sp > max_budget:
                 return -1e9 * (total_sp - max_budget)
 
-            spends = {"Google Ads": spend_g, "Meta Ads": spend_m, "Bing Ads": spend_b}
             total_rev = 0.0
             for ch in channels:
                 p = self.channel_params[ch]
@@ -196,11 +230,7 @@ class BudgetOptimizer:
         study.optimize(objective, n_trials=n_trials)
 
         best_params = study.best_params
-        best_spends = {
-            "Google Ads": best_params["spend_Google Ads"],
-            "Meta Ads": best_params["spend_Meta Ads"],
-            "Bing Ads": best_params["spend_Bing Ads"]
-        }
+        best_spends = {ch: best_params[f"spend_{ch}"] for ch in channels}
         total_opt_spend = sum(best_spends.values())
 
         total_opt_rev = 0.0

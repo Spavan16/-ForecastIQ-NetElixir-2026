@@ -1549,12 +1549,28 @@ function TabScenarios({ scenarios, loading, error }: { scenarios: ScenarioItem[]
 }
 
 // ─── Tab: Budget Optimizer ────────────────────────────────────────────
+// BUG fix (bug-hunt sweep, same class as the frozen-dimension predictions bug): this
+// used to hardcode exactly 3 slider rows for Google/Meta/Bing, so a 4th channel present in
+// the actual data (backend now fully supports this) had no way to be simulated in the UI
+// at all. `channels` now comes from the live /api/dimensions response.
+const CHANNEL_TONE: Record<string, string> = {
+  "Google Ads": "#DD7A3C",
+  "Meta Ads": "#1F7A78",
+  "Bing Ads": "#9C8F82",
+};
+const FALLBACK_CHANNEL_TONES = ["#8E6BB0", "#4E8CA6", "#B3844C", "#6E8C4E", "#A65C6E"];
+function channelToneFor(channel: string, index: number): string {
+  return CHANNEL_TONE[channel] ?? FALLBACK_CHANNEL_TONES[index % FALLBACK_CHANNEL_TONES.length];
+}
+
 function TabBudget({
+  channels,
   simInputs, onSimChange, simResult, simLoading,
   optInputs, onOptChange, optResult, optLoading, onRunOptimize,
 }: {
-  simInputs: { google_pct: number; meta_pct: number; bing_pct: number };
-  onSimChange: (k: "google_pct" | "meta_pct" | "bing_pct", v: number) => void;
+  channels: string[];
+  simInputs: Record<string, number>;
+  onSimChange: (channel: string, v: number) => void;
   simResult: BudgetSimResponse | null;
   simLoading: boolean;
   optInputs: { max_budget: number; target_roas: number };
@@ -1563,38 +1579,34 @@ function TabBudget({
   optLoading: boolean;
   onRunOptimize: () => void;
 }) {
-  const sliderRows: { key: "google_pct" | "meta_pct" | "bing_pct"; label: string }[] = [
-    { key: "google_pct", label: "Google Ads" },
-    { key: "meta_pct", label: "Meta Ads" },
-    { key: "bing_pct", label: "Bing Ads" },
-  ];
-  const channelTone: Record<string, string> = {
-    "Google Ads": "#DD7A3C",
-    "Meta Ads": "#1F7A78",
-    "Bing Ads": "#9C8F82",
-  };
+  const sliderRows = channels.map((ch, i) => ({ key: ch, label: ch, tone: channelToneFor(ch, i) }));
+  const channelTone: Record<string, string> = Object.fromEntries(sliderRows.map(r => [r.key, r.tone]));
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-2 gap-6">
         <LightCard className="flex flex-col">
           <OverviewSectionHead index="01" title="Live Budget Simulator" meta="30-day run-rate" />
           <div className="flex flex-col gap-4">
-            {sliderRows.map(row => (
+            {sliderRows.map(row => {
+              // Channels not yet touched aren't in the dynamic simInputs map — default to 0%.
+              const pct = simInputs[row.key] ?? 0;
+              return (
               <div key={row.key} className="rounded-2xl border border-white/70 bg-white/45 px-4 py-3 backdrop-blur-sm">
                 <div className="flex justify-between text-xs mb-2">
                   <span className="flex items-center gap-2 font-semibold text-[#3A2E28]">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: channelTone[row.label] ?? "#8A7A6E" }} />
                     {row.label}
                   </span>
-                  <span className={`font-bold font-mono ${simInputs[row.key] > 0 ? "text-[#1F7A78]" : simInputs[row.key] < 0 ? "text-[#B5443B]" : "text-[#8A7A6E]"}`}>
-                    {simInputs[row.key] > 0 ? "+" : ""}{simInputs[row.key]}%
+                  <span className={`font-bold font-mono ${pct > 0 ? "text-[#1F7A78]" : pct < 0 ? "text-[#B5443B]" : "text-[#8A7A6E]"}`}>
+                    {pct > 0 ? "+" : ""}{pct}%
                   </span>
                 </div>
-                <input type="range" min={-50} max={100} step={5} value={simInputs[row.key]}
+                <input type="range" min={-50} max={100} step={5} value={pct}
                   onChange={e => onSimChange(row.key, Number(e.target.value))}
                   className="w-full accent-[#C0632B]" />
               </div>
-            ))}
+              );
+            })}
           </div>
           {simLoading ? <LoadingBlock label="simulation" /> : simResult && (
             <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-[#3A2E28]/10">
@@ -1658,7 +1670,7 @@ function TabBudget({
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-2xl border border-white/70 bg-white/45 backdrop-blur-sm p-4">
             <span className="text-[11px] uppercase tracking-widest text-[#8A7A6E] block mb-2">Objective</span>
-            <p className="text-sm text-[#3A2E28] leading-relaxed">Maximize expected 30-day revenue across Google, Meta, and Bing.</p>
+            <p className="text-sm text-[#3A2E28] leading-relaxed">Maximize expected 30-day revenue across every active channel{channels.length ? `: ${channels.join(", ")}` : ""}.</p>
           </div>
           <div className="rounded-2xl border border-white/70 bg-white/45 backdrop-blur-sm p-4">
             <span className="text-[11px] uppercase tracking-widest text-[#8A7A6E] block mb-2">Constraints</span>
@@ -1666,7 +1678,7 @@ function TabBudget({
           </div>
           <div className="rounded-2xl border border-white/70 bg-white/45 backdrop-blur-sm p-4">
             <span className="text-[11px] uppercase tracking-widest text-[#8A7A6E] block mb-2">Assumption</span>
-            <p className="text-sm text-[#3A2E28] leading-relaxed">Each channel has diminishing marginal returns — pushing more spend into one channel yields progressively less revenue per dollar, so Optuna searches for the split that balances all three.</p>
+            <p className="text-sm text-[#3A2E28] leading-relaxed">Each channel has diminishing marginal returns — pushing more spend into one channel yields progressively less revenue per dollar, so Optuna searches for the split that balances every active channel.</p>
           </div>
           <div className="rounded-2xl border border-white/70 bg-white/45 backdrop-blur-sm p-4">
             <span className="text-[11px] uppercase tracking-widest text-[#8A7A6E] block mb-2">Output</span>
@@ -2182,7 +2194,12 @@ export default function Page() {
   const [selectedDimension, setSelectedDimension] = useState<string>("Overall");
   const [forecasts, setForecasts] = useState<LoadState<ForecastsResponse>>({ data: null, loading: true });
 
-  const [simInputs, setSimInputs] = useState({ google_pct: 0, meta_pct: 0, bing_pct: 0 });
+  // BUG fix (bug-hunt sweep, same class as the frozen-dimension predictions bug): previously
+  // a fixed { google_pct, meta_pct, bing_pct } object, which made a 4th channel structurally
+  // impossible to simulate anywhere in the UI even though the backend optimizer can now
+  // handle any channel present in the data. Now a dynamic channel-name -> pct map; sliders
+  // are rendered per entry in dimensions.data.channels (see TabBudget below).
+  const [simInputs, setSimInputs] = useState<Record<string, number>>({});
   const [simResult, setSimResult] = useState<BudgetSimResponse | null>(null);
   const [simLoading, setSimLoading] = useState(false);
 
@@ -2249,18 +2266,20 @@ export default function Page() {
   // ── Budget simulator: debounce-free, re-run on every slider change ─────
   useEffect(() => {
     setSimLoading(true);
+    // BUG fix (bug-hunt sweep): request body now matches the backend's dynamic
+    // BudgetSimRequest.channel_pcts schema instead of the old fixed 3-field shape.
     fetchJson<BudgetSimResponse>("/api/simulate-budget", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(simInputs),
+      body: JSON.stringify({ channel_pcts: simInputs }),
     })
       .then(data => { setSimResult(data); setSimLoading(false); })
       .catch(() => setSimLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [simInputs]);
 
-  const handleSimChange = useCallback((k: "google_pct" | "meta_pct" | "bing_pct", v: number) => {
-    setSimInputs(prev => ({ ...prev, [k]: v }));
+  const handleSimChange = useCallback((channel: string, v: number) => {
+    setSimInputs(prev => ({ ...prev, [channel]: v }));
   }, []);
 
   const handleOptChange = useCallback((k: "max_budget" | "target_roas", v: number) => {
@@ -2436,6 +2455,7 @@ export default function Page() {
           {activeTab === "scenarios" && <TabScenarios scenarios={scenarios.data} loading={scenarios.loading} error={scenarios.error} />}
           {activeTab === "budget" && (
             <TabBudget
+              channels={dimensions.data?.channels ?? []}
               simInputs={simInputs} onSimChange={handleSimChange} simResult={simResult} simLoading={simLoading}
               optInputs={optInputs} onOptChange={handleOptChange} optResult={optResult} optLoading={optLoading}
               onRunOptimize={handleRunOptimize}

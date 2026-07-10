@@ -422,9 +422,11 @@ def get_monte_carlo_simulations():
 
 
 class BudgetSimRequest(BaseModel):
-    google_pct: float = 0.0
-    meta_pct: float = 0.0
-    bing_pct: float = 0.0
+    # BUG fix (bug-hunt sweep, same class as the frozen-dimension predictions bug): previously
+    # three fixed fields (google_pct/meta_pct/bing_pct), which made the API contract itself
+    # incapable of simulating a 4th channel no matter what the optimizer or frontend could do.
+    # Now accepts any channel name -> pct_change mapping; channels omitted default to 0% change.
+    channel_pcts: Dict[str, float] = {}
 
 
 @app.post("/api/simulate-budget")
@@ -438,9 +440,12 @@ def simulate_budget_changes(req: BudgetSimRequest):
     if unique_days > 0:
         norm_spends = (df.groupby('channel')['spend'].sum() / unique_days * 30.0).to_dict()
     else:
-        norm_spends = {"Google Ads": 50000.0, "Meta Ads": 35000.0, "Bing Ads": 15000.0}
+        # BUG fix (bug-hunt sweep): previously hardcoded exactly Google/Meta/Bing here too.
+        # Genuinely-no-data edge case only; fall back to whatever channels the optimizer
+        # itself knows about (opt.channels, data-derived), not a hardcoded 3-name list.
+        norm_spends = {ch: 25000.0 for ch in opt.channels}
         
-    for req_ch in ["Google Ads", "Meta Ads", "Bing Ads"]:
+    for req_ch in opt.channels:
         if req_ch not in norm_spends or norm_spends[req_ch] <= 0:
             # BUG fix (P3): this used to hardcode a flat 25000.0 for any channel missing/zero
             # in the historical data — same fabricated-constant pattern as the old BUG_04.
@@ -451,7 +456,7 @@ def simulate_budget_changes(req: BudgetSimRequest):
             valid_spends = [v for k, v in norm_spends.items() if k != req_ch and v > 0]
             norm_spends[req_ch] = (sum(valid_spends) / len(valid_spends)) if valid_spends else 25000.0
             
-    res = opt.simulate_budget_change(req.google_pct, req.meta_pct, req.bing_pct, norm_spends)
+    res = opt.simulate_budget_change(req.channel_pcts, norm_spends)
     return res
 
 
