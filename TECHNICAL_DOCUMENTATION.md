@@ -17,14 +17,14 @@ The weighted average of all four model predictions forms the **P50 (expected) fo
 
 ### Monte Carlo Simulation
 
-On top of the ensemble, a Monte Carlo simulation (1,000 iterations, seed=42 for reproducibility) samples from the residual distribution to produce portfolio-level revenue distributions. This gives the P10 floor and P90 ceiling used across all forecast outputs.
+On top of the ensemble, a Monte Carlo simulation (10,000 iterations, seed=42 for reproducibility) samples from the residual distribution to produce portfolio-level revenue distributions. This gives the P10 floor and P90 ceiling used across all forecast outputs.
 
 ### Forecast Dimensions
 
 Forecasts are produced at four levels of granularity:
 - **Overall**: blended portfolio across all channels
 - **Channel**: Google Ads, Meta Ads, Bing Ads independently
-- **Campaign Type**: SEARCH, SOCIAL, PMAX, REMARKETING
+- **Campaign Type**: SEARCH, SOCIAL, PERFORMANCE_MAX, SHOPPING, DISPLAY, VIDEO, DEMAND_GEN, AUDIENCE (derived from the actual channel data at prediction time, not a fixed list — see Section 5)
 - **Campaign**: top individual campaigns by historical revenue contribution
 
 ---
@@ -87,7 +87,7 @@ From the unified dataframe, the following features are constructed:
 
 4. **No external macro variables.** The model does not incorporate macroeconomic signals (inflation, consumer confidence) or competitor activity. Seasonality is captured via date features derived from historical patterns only.
 
-5. **Campaign structure stability.** Campaign names and types present in training data are expected to persist into the forecast window. New campaigns introduced after the training cutoff will fall back to channel-level forecasts.
+5. **Campaign structure stability.** Which channels, campaign types, and campaigns get scored is derived from the actual held-out data at prediction time (not a fixed list baked in at training time), so new campaign types or campaign names introduced after the training cutoff are still scored — via the Universal Dimension Fallback, which scales down the current overall-portfolio forecast for that entity (see Section 5) rather than requiring an entity-specific trained model.
 
 ---
 
@@ -97,6 +97,7 @@ From the unified dataframe, the following features are constructed:
 - **Cold start for new campaigns**: Campaigns not seen during training use a scaled-down version of the overall forecast. This is disclosed in the fallback path.
 - **90-day horizon uncertainty**: P10/P90 intervals widen significantly at 90 days. The P50 point estimate is reliable; the tails should be treated as scenario bounds rather than precise predictions.
 - **No intra-day modeling**: All forecasts are aggregate-period (30/60/90 days) as specified. Daily granularity trajectories shown in the UI are smoothed interpolations for visualization only and are not scored outputs.
+- **Revenue MAPE vs. a naive baseline**: In the offline rolling-origin backtest (3 folds, `output/backtest_summary.json`), ROAS forecasts beat a naive baseline (flat trailing-30-day average) at the 60-day horizon and trail narrowly at 30/90 days; Revenue forecasts trail the naive baseline across all three horizons. We're disclosing this rather than omitting it — see the full backtest breakdown and root-cause analysis (recency-anchoring weight, limited history at the earliest backtest origin, and a Nov–Dec demand spike with only two historical instances in the ~2.5-year dataset) in `executive_forecast_report.pdf`, Section 4.
 
 ---
 

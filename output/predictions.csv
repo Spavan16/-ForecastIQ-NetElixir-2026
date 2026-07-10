@@ -1,133 +1,133 @@
 forecast_period,dimension_type,dimension_value,metric,p10,p50,p90
-30_days,Overall,Total Portfolio,Revenue,173156.42,280624.64,388092.86
-30_days,Overall,Total Portfolio,ROAS,3.03,4.91,6.79
-60_days,Overall,Total Portfolio,Revenue,384157.47,564896.75,745636.03
-60_days,Overall,Total Portfolio,ROAS,3.32,4.89,6.45
-90_days,Overall,Total Portfolio,Revenue,606097.53,851072.1,1096046.66
-90_days,Overall,Total Portfolio,ROAS,3.49,4.9,6.31
-30_days,Channel,Bing Ads,Revenue,229.06,4581.28,15278.73
-30_days,Channel,Bing Ads,ROAS,0.07,1.43,4.78
-60_days,Channel,Bing Ads,Revenue,508.26,10165.16,28156.05
-60_days,Channel,Bing Ads,ROAS,0.08,1.57,4.35
-90_days,Channel,Bing Ads,Revenue,752.06,15041.22,39426.12
-90_days,Channel,Bing Ads,ROAS,0.08,1.56,4.08
-30_days,Channel,Google Ads,Revenue,48634.84,259208.9,469782.97
-30_days,Channel,Google Ads,ROAS,0.99,5.29,9.6
-60_days,Channel,Google Ads,Revenue,166781.27,520923.22,875065.17
-60_days,Channel,Google Ads,ROAS,1.68,5.25,8.82
-90_days,Channel,Google Ads,Revenue,307043.84,787048.9,1267053.97
-90_days,Channel,Google Ads,ROAS,2.05,5.26,8.47
-30_days,Channel,Meta Ads,Revenue,1822.48,36449.61,130526.46
-30_days,Channel,Meta Ads,ROAS,0.26,5.27,18.87
-60_days,Channel,Meta Ads,Revenue,3662.68,73253.66,231471.43
-60_days,Channel,Meta Ads,ROAS,0.27,5.36,16.94
-90_days,Channel,Meta Ads,Revenue,5476.25,109525.08,323973.91
-90_days,Channel,Meta Ads,ROAS,0.27,5.5,16.26
+30_days,Overall,Total Portfolio,Revenue,171112.91,278581.13,386049.35
+30_days,Overall,Total Portfolio,ROAS,2.94,4.79,6.64
+60_days,Overall,Total Portfolio,Revenue,380070.44,560809.72,741549.0
+60_days,Overall,Total Portfolio,ROAS,3.23,4.77,6.31
+90_days,Overall,Total Portfolio,Revenue,599966.99,844941.55,1089916.12
+90_days,Overall,Total Portfolio,ROAS,3.4,4.78,6.17
+30_days,Channel,Bing Ads,Revenue,248.06,4961.25,15658.7
+30_days,Channel,Bing Ads,ROAS,0.07,1.5,4.72
+60_days,Channel,Bing Ads,Revenue,546.25,10925.09,28915.98
+60_days,Channel,Bing Ads,ROAS,0.08,1.63,4.31
+90_days,Channel,Bing Ads,Revenue,809.06,16181.12,40566.02
+90_days,Channel,Bing Ads,ROAS,0.08,1.62,4.05
+30_days,Channel,Google Ads,Revenue,46495.99,257070.06,467644.12
+30_days,Channel,Google Ads,ROAS,0.94,5.18,9.42
+60_days,Channel,Google Ads,Revenue,162503.58,516645.53,870787.48
+60_days,Channel,Google Ads,ROAS,1.62,5.14,8.66
+90_days,Channel,Google Ads,Revenue,300627.3,780632.36,1260637.42
+90_days,Channel,Google Ads,ROAS,1.98,5.15,8.31
+30_days,Channel,Meta Ads,Revenue,1852.39,37047.85,131124.69
+30_days,Channel,Meta Ads,ROAS,0.26,5.12,18.13
+60_days,Channel,Meta Ads,Revenue,3722.51,74450.13,232667.9
+60_days,Channel,Meta Ads,ROAS,0.26,5.21,16.28
+90_days,Channel,Meta Ads,Revenue,5565.99,111319.79,325768.62
+90_days,Channel,Meta Ads,ROAS,0.27,5.33,15.61
 30_days,CampaignType,AUDIENCE,Revenue,0.0,0.0,0.0
 30_days,CampaignType,AUDIENCE,ROAS,0.0,0.0,0.0
 60_days,CampaignType,AUDIENCE,Revenue,0.0,0.0,0.0
 60_days,CampaignType,AUDIENCE,ROAS,0.0,0.0,0.0
 90_days,CampaignType,AUDIENCE,Revenue,0.0,0.0,0.0
 90_days,CampaignType,AUDIENCE,ROAS,0.0,0.0,0.0
-30_days,CampaignType,DEMAND_GEN,Revenue,64.7,1294.09,3726.32
-30_days,CampaignType,DEMAND_GEN,ROAS,0.04,0.88,2.54
-60_days,CampaignType,DEMAND_GEN,Revenue,130.56,2611.28,6701.79
-60_days,CampaignType,DEMAND_GEN,ROAS,0.04,0.89,2.28
-90_days,CampaignType,DEMAND_GEN,Revenue,202.55,4050.94,9595.23
-90_days,CampaignType,DEMAND_GEN,ROAS,0.05,0.94,2.22
+30_days,CampaignType,DEMAND_GEN,Revenue,58.0,1160.04,3592.27
+30_days,CampaignType,DEMAND_GEN,ROAS,0.05,1.01,3.13
+60_days,CampaignType,DEMAND_GEN,Revenue,117.16,2343.19,6433.7
+60_days,CampaignType,DEMAND_GEN,ROAS,0.05,1.02,2.8
+90_days,CampaignType,DEMAND_GEN,Revenue,182.44,3648.81,9193.09
+90_days,CampaignType,DEMAND_GEN,ROAS,0.05,1.09,2.74
 30_days,CampaignType,DISPLAY,Revenue,0.0,0.0,0.0
 30_days,CampaignType,DISPLAY,ROAS,0.0,0.0,0.0
 60_days,CampaignType,DISPLAY,Revenue,0.0,0.0,0.0
 60_days,CampaignType,DISPLAY,ROAS,0.0,0.0,0.0
 90_days,CampaignType,DISPLAY,Revenue,0.0,0.0,0.0
 90_days,CampaignType,DISPLAY,ROAS,0.0,0.0,0.0
-30_days,CampaignType,PERFORMANCE_MAX,Revenue,5822.14,116442.76,270771.12
-30_days,CampaignType,PERFORMANCE_MAX,ROAS,0.2,4.09,9.52
-60_days,CampaignType,PERFORMANCE_MAX,Revenue,11751.05,235021.1,494569.44
-60_days,CampaignType,PERFORMANCE_MAX,ROAS,0.2,4.05,8.52
-90_days,CampaignType,PERFORMANCE_MAX,Revenue,17856.22,357124.3,708916.9
-90_days,CampaignType,PERFORMANCE_MAX,ROAS,0.2,4.07,8.08
-30_days,CampaignType,SEARCH,Revenue,3540.09,70801.87,148732.37
-30_days,CampaignType,SEARCH,ROAS,0.24,4.81,10.1
-60_days,CampaignType,SEARCH,Revenue,12420.72,143483.67,274546.63
-60_days,CampaignType,SEARCH,ROAS,0.42,4.86,9.3
-90_days,CampaignType,SEARCH,Revenue,37825.34,215468.46,393111.58
-90_days,CampaignType,SEARCH,ROAS,0.85,4.87,8.88
-30_days,CampaignType,SHOPPING,Revenue,3930.01,78600.21,204165.65
-30_days,CampaignType,SHOPPING,ROAS,0.4,8.09,21.01
-60_days,CampaignType,SHOPPING,Revenue,7876.68,157533.61,368708.68
-60_days,CampaignType,SHOPPING,ROAS,0.4,8.06,18.87
-90_days,CampaignType,SHOPPING,Revenue,11871.44,237428.84,523656.15
-90_days,CampaignType,SHOPPING,ROAS,0.41,8.11,17.89
-30_days,CampaignType,SOCIAL,Revenue,1822.48,36449.61,130526.46
-30_days,CampaignType,SOCIAL,ROAS,0.26,5.27,18.87
-60_days,CampaignType,SOCIAL,Revenue,3662.68,73253.66,231471.43
-60_days,CampaignType,SOCIAL,ROAS,0.27,5.36,16.94
-90_days,CampaignType,SOCIAL,Revenue,5476.25,109525.08,323973.91
-90_days,CampaignType,SOCIAL,ROAS,0.27,5.5,16.26
-30_days,CampaignType,VIDEO,Revenue,0.48,9.62,1797.19
-30_days,CampaignType,VIDEO,ROAS,0.0,0.01,0.94
-60_days,CampaignType,VIDEO,Revenue,0.96,19.12,3025.45
-60_days,CampaignType,VIDEO,ROAS,0.0,0.0,0.77
-90_days,CampaignType,VIDEO,Revenue,1.62,32.38,4107.18
-90_days,CampaignType,VIDEO,ROAS,0.0,0.01,0.69
-30_days,Campaign,Search_TM_Campaign_01,Revenue,1514.53,30290.57,66062.05
-30_days,Campaign,Search_TM_Campaign_01,ROAS,0.34,6.87,14.98
-60_days,Campaign,Search_TM_Campaign_01,Revenue,3016.8,60335.95,120496.16
-60_days,Campaign,Search_TM_Campaign_01,ROAS,0.34,6.82,13.62
-90_days,Campaign,Search_TM_Campaign_01,Revenue,8094.94,89636.26,171177.59
-90_days,Campaign,Search_TM_Campaign_01,ROAS,0.63,6.98,13.33
-30_days,Campaign,Pmax_NTM_Campaign_10,Revenue,631.39,12627.83,56534.58
-30_days,Campaign,Pmax_NTM_Campaign_10,ROAS,0.28,5.51,24.66
-60_days,Campaign,Pmax_NTM_Campaign_10,Revenue,1509.48,30189.57,104031.63
-60_days,Campaign,Pmax_NTM_Campaign_10,ROAS,0.26,5.14,17.73
-90_days,Campaign,Pmax_NTM_Campaign_10,Revenue,2336.61,46732.22,146817.97
-90_days,Campaign,Pmax_NTM_Campaign_10,ROAS,0.26,5.2,16.33
-30_days,Campaign,Shopping_NTM_Campaign_01,Revenue,3896.45,77928.93,203449.52
-30_days,Campaign,Shopping_NTM_Campaign_01,ROAS,0.42,8.3,21.68
-60_days,Campaign,Shopping_NTM_Campaign_01,Revenue,7811.17,156223.31,367322.94
-60_days,Campaign,Shopping_NTM_Campaign_01,ROAS,0.41,8.28,19.46
-90_days,Campaign,Shopping_NTM_Campaign_01,Revenue,11786.31,235726.26,521851.33
-90_days,Campaign,Shopping_NTM_Campaign_01,ROAS,0.42,8.31,18.4
-30_days,Campaign,Pmax_NTM_Campaign_08,Revenue,55.46,1109.24,37218.63
-30_days,Campaign,Pmax_NTM_Campaign_08,ROAS,0.17,3.35,112.3
-60_days,Campaign,Pmax_NTM_Campaign_08,Revenue,121.75,2434.99,63163.49
-60_days,Campaign,Pmax_NTM_Campaign_08,ROAS,0.15,2.95,76.6
-90_days,Campaign,Pmax_NTM_Campaign_08,Revenue,205.25,4104.96,86416.56
-90_days,Campaign,Pmax_NTM_Campaign_08,ROAS,0.13,2.66,56.08
-30_days,Campaign,Pmax_NTM_Campaign_05,Revenue,206.09,4121.76,39571.03
-30_days,Campaign,Pmax_NTM_Campaign_05,ROAS,0.39,7.73,74.24
-60_days,Campaign,Pmax_NTM_Campaign_05,Revenue,402.32,8046.48,67664.81
-60_days,Campaign,Pmax_NTM_Campaign_05,ROAS,0.41,8.26,69.48
-90_days,Campaign,Pmax_NTM_Campaign_05,Revenue,631.45,12629.02,93435.88
-90_days,Campaign,Pmax_NTM_Campaign_05,ROAS,0.4,8.02,59.36
-30_days,Campaign,Pmax_NTM_Campaign_15,Revenue,412.84,8256.83,29456.93
-30_days,Campaign,Pmax_NTM_Campaign_15,ROAS,0.45,8.91,31.79
-60_days,Campaign,Pmax_NTM_Campaign_15,Revenue,841.06,16821.25,52475.41
-60_days,Campaign,Pmax_NTM_Campaign_15,ROAS,0.43,8.56,26.69
-90_days,Campaign,Pmax_NTM_Campaign_15,Revenue,1492.31,29846.27,78172.03
-90_days,Campaign,Pmax_NTM_Campaign_15,ROAS,0.38,7.55,19.78
-30_days,Campaign,Search_TM_Campaign_04,Revenue,954.49,19089.86,88545.51
-30_days,Campaign,Search_TM_Campaign_04,ROAS,0.34,6.86,31.82
-60_days,Campaign,Search_TM_Campaign_04,Revenue,1889.05,37780.97,154590.98
-60_days,Campaign,Search_TM_Campaign_04,ROAS,0.34,6.81,27.86
-90_days,Campaign,Search_TM_Campaign_04,Revenue,2738.17,54763.37,213088.01
-90_days,Campaign,Search_TM_Campaign_04,ROAS,0.33,6.59,25.64
-30_days,Campaign,Prospecting_Brand_Campaign_02,Revenue,628.71,12574.28,43696.24
-30_days,Campaign,Prospecting_Brand_Campaign_02,ROAS,0.3,5.94,20.64
-60_days,Campaign,Prospecting_Brand_Campaign_02,Revenue,1241.58,24831.54,77172.22
-60_days,Campaign,Prospecting_Brand_Campaign_02,ROAS,0.3,5.96,18.52
-90_days,Campaign,Prospecting_Brand_Campaign_02,Revenue,1852.93,37058.65,108001.37
-90_days,Campaign,Prospecting_Brand_Campaign_02,ROAS,0.3,6.08,17.71
-30_days,Campaign,Remarketing_Brand_Campaign_03,Revenue,987.82,19756.42,58485.4
-30_days,Campaign,Remarketing_Brand_Campaign_03,ROAS,0.88,17.63,52.19
-60_days,Campaign,Remarketing_Brand_Campaign_03,Revenue,2008.65,40173.03,105307.15
-60_days,Campaign,Remarketing_Brand_Campaign_03,ROAS,0.9,17.98,47.12
-90_days,Campaign,Remarketing_Brand_Campaign_03,Revenue,3029.86,60597.22,148880.2
-90_days,Campaign,Remarketing_Brand_Campaign_03,ROAS,0.92,18.42,45.25
-30_days,Campaign,Search_TM_Campaign_02,Revenue,1856.08,16561.47,31266.86
-30_days,Campaign,Search_TM_Campaign_02,ROAS,0.52,4.68,8.84
-60_days,Campaign,Search_TM_Campaign_02,Revenue,8374.97,33106.4,57837.82
-60_days,Campaign,Search_TM_Campaign_02,ROAS,1.18,4.65,8.12
-90_days,Campaign,Search_TM_Campaign_02,Revenue,16242.9,49763.94,83284.99
-90_days,Campaign,Search_TM_Campaign_02,ROAS,1.52,4.66,7.8
+30_days,CampaignType,PERFORMANCE_MAX,Revenue,5653.15,113063.03,267391.39
+30_days,CampaignType,PERFORMANCE_MAX,ROAS,0.2,3.97,9.38
+60_days,CampaignType,PERFORMANCE_MAX,Revenue,11413.08,228261.64,487809.98
+60_days,CampaignType,PERFORMANCE_MAX,ROAS,0.2,3.92,8.38
+90_days,CampaignType,PERFORMANCE_MAX,Revenue,17349.26,346985.11,698777.72
+90_days,CampaignType,PERFORMANCE_MAX,ROAS,0.2,3.95,7.95
+30_days,CampaignType,SEARCH,Revenue,3516.21,70324.23,148254.73
+30_days,CampaignType,SEARCH,ROAS,0.23,4.63,9.76
+60_days,CampaignType,SEARCH,Revenue,11465.45,142528.4,273591.36
+60_days,CampaignType,SEARCH,ROAS,0.38,4.68,8.99
+90_days,CampaignType,SEARCH,Revenue,36392.43,214035.55,391678.67
+90_days,CampaignType,SEARCH,ROAS,0.8,4.69,8.59
+30_days,CampaignType,SHOPPING,Revenue,3990.79,79815.82,205381.26
+30_days,CampaignType,SHOPPING,ROAS,0.4,8.07,20.77
+60_days,CampaignType,SHOPPING,Revenue,7998.24,159964.84,371139.9
+60_days,CampaignType,SHOPPING,ROAS,0.4,8.05,18.67
+90_days,CampaignType,SHOPPING,Revenue,12053.78,241075.68,527302.99
+90_days,CampaignType,SHOPPING,ROAS,0.4,8.1,17.71
+30_days,CampaignType,SOCIAL,Revenue,1852.39,37047.85,131124.69
+30_days,CampaignType,SOCIAL,ROAS,0.26,5.12,18.13
+60_days,CampaignType,SOCIAL,Revenue,3722.51,74450.13,232667.9
+60_days,CampaignType,SOCIAL,ROAS,0.26,5.21,16.28
+90_days,CampaignType,SOCIAL,Revenue,5565.99,111319.79,325768.62
+90_days,CampaignType,SOCIAL,ROAS,0.27,5.33,15.61
+30_days,CampaignType,VIDEO,Revenue,0.31,6.22,1793.79
+30_days,CampaignType,VIDEO,ROAS,0.0,0.0,1.42
+60_days,CampaignType,VIDEO,Revenue,0.62,12.32,3018.66
+60_days,CampaignType,VIDEO,ROAS,0.0,0.0,1.16
+90_days,CampaignType,VIDEO,Revenue,1.11,22.18,4096.98
+90_days,CampaignType,VIDEO,ROAS,0.0,0.01,1.04
+30_days,Campaign,Search_TM_Campaign_01,Revenue,1580.55,31610.94,67382.41
+30_days,Campaign,Search_TM_Campaign_01,ROAS,0.34,6.76,14.42
+60_days,Campaign,Search_TM_Campaign_01,Revenue,3148.83,62976.68,123136.89
+60_days,Campaign,Search_TM_Campaign_01,ROAS,0.34,6.72,13.14
+90_days,Campaign,Search_TM_Campaign_01,Revenue,12056.03,93597.36,175138.68
+90_days,Campaign,Search_TM_Campaign_01,ROAS,0.88,6.87,12.85
+30_days,Campaign,Pmax_NTM_Campaign_10,Revenue,550.92,11018.31,54925.06
+30_days,Campaign,Pmax_NTM_Campaign_10,ROAS,0.27,5.38,26.81
+60_days,Campaign,Pmax_NTM_Campaign_10,Revenue,1348.53,26970.53,100812.59
+60_days,Campaign,Pmax_NTM_Campaign_10,ROAS,0.25,5.01,18.73
+90_days,Campaign,Pmax_NTM_Campaign_10,Revenue,2095.18,41903.65,141989.41
+90_days,Campaign,Pmax_NTM_Campaign_10,ROAS,0.25,5.07,17.19
+30_days,Campaign,Shopping_NTM_Campaign_01,Revenue,3954.12,79082.49,204603.08
+30_days,Campaign,Shopping_NTM_Campaign_01,ROAS,0.41,8.3,21.46
+60_days,Campaign,Shopping_NTM_Campaign_01,Revenue,7926.52,158530.42,369630.05
+60_days,Campaign,Shopping_NTM_Campaign_01,ROAS,0.41,8.27,19.28
+90_days,Campaign,Shopping_NTM_Campaign_01,Revenue,11959.35,239186.92,525312.0
+90_days,Campaign,Shopping_NTM_Campaign_01,ROAS,0.42,8.31,18.24
+30_days,Campaign,Pmax_NTM_Campaign_08,Revenue,49.52,990.42,37099.81
+30_days,Campaign,Pmax_NTM_Campaign_08,ROAS,0.15,3.02,113.19
+60_days,Campaign,Pmax_NTM_Campaign_08,Revenue,109.87,2197.34,62925.84
+60_days,Campaign,Pmax_NTM_Campaign_08,ROAS,0.13,2.69,77.12
+90_days,Campaign,Pmax_NTM_Campaign_08,Revenue,187.42,3748.48,86060.09
+90_days,Campaign,Pmax_NTM_Campaign_08,ROAS,0.12,2.45,56.34
+30_days,Campaign,Pmax_NTM_Campaign_05,Revenue,88.81,1776.21,37225.48
+30_days,Campaign,Pmax_NTM_Campaign_05,ROAS,0.28,5.64,118.16
+60_days,Campaign,Pmax_NTM_Campaign_05,Revenue,167.77,3355.37,62973.7
+60_days,Campaign,Pmax_NTM_Campaign_05,ROAS,0.31,6.24,117.05
+90_days,Campaign,Pmax_NTM_Campaign_05,Revenue,279.62,5592.35,86399.21
+90_days,Campaign,Pmax_NTM_Campaign_05,ROAS,0.3,6.08,93.9
+30_days,Campaign,Pmax_NTM_Campaign_15,Revenue,338.34,6766.77,27966.86
+30_days,Campaign,Pmax_NTM_Campaign_15,ROAS,0.36,7.19,29.72
+60_days,Campaign,Pmax_NTM_Campaign_15,Revenue,692.06,13841.12,49495.29
+60_days,Campaign,Pmax_NTM_Campaign_15,ROAS,0.35,6.94,24.81
+90_days,Campaign,Pmax_NTM_Campaign_15,Revenue,1268.8,25376.08,73701.84
+90_days,Campaign,Pmax_NTM_Campaign_15,ROAS,0.32,6.35,18.45
+30_days,Campaign,Search_TM_Campaign_04,Revenue,940.28,18805.57,88261.22
+30_days,Campaign,Search_TM_Campaign_04,ROAS,0.37,7.35,34.51
+60_days,Campaign,Search_TM_Campaign_04,Revenue,1860.62,37212.4,154022.4
+60_days,Campaign,Search_TM_Campaign_04,ROAS,0.36,7.3,30.21
+90_days,Campaign,Search_TM_Campaign_04,Revenue,2695.53,53910.51,212235.14
+90_days,Campaign,Search_TM_Campaign_04,ROAS,0.35,7.06,27.8
+30_days,Campaign,Prospecting_Brand_Campaign_02,Revenue,601.11,12022.13,43144.09
+30_days,Campaign,Prospecting_Brand_Campaign_02,ROAS,0.28,5.53,19.86
+60_days,Campaign,Prospecting_Brand_Campaign_02,Revenue,1186.36,23727.24,76067.92
+60_days,Campaign,Prospecting_Brand_Campaign_02,ROAS,0.28,5.55,17.79
+90_days,Campaign,Prospecting_Brand_Campaign_02,Revenue,1770.11,35402.2,106344.92
+90_days,Campaign,Prospecting_Brand_Campaign_02,ROAS,0.28,5.65,16.98
+30_days,Campaign,Remarketing_Brand_Campaign_03,Revenue,788.28,15765.66,54494.64
+30_days,Campaign,Remarketing_Brand_Campaign_03,ROAS,0.92,18.48,63.88
+60_days,Campaign,Remarketing_Brand_Campaign_03,Revenue,1609.58,32191.52,97325.64
+60_days,Campaign,Remarketing_Brand_Campaign_03,ROAS,0.95,18.94,57.26
+90_days,Campaign,Remarketing_Brand_Campaign_03,Revenue,2431.25,48624.95,136907.93
+90_days,Campaign,Remarketing_Brand_Campaign_03,ROAS,0.98,19.55,55.03
+30_days,Campaign,Search_TM_Campaign_02,Revenue,2288.47,16993.86,31699.25
+30_days,Campaign,Search_TM_Campaign_02,ROAS,0.61,4.52,8.43
+60_days,Campaign,Search_TM_Campaign_02,Revenue,9239.74,33971.16,58702.58
+60_days,Campaign,Search_TM_Campaign_02,ROAS,1.22,4.49,7.76
+90_days,Campaign,Search_TM_Campaign_02,Revenue,17540.05,51061.09,84582.13
+90_days,Campaign,Search_TM_Campaign_02,ROAS,1.55,4.5,7.46

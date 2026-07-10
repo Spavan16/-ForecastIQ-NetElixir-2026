@@ -325,6 +325,46 @@ class EnsembleForecaster:
             f"({len(self.recent_baselines)} dimension keys now anchored to actual recent spend/revenue)."
         )
 
+    def get_current_dimension_values(self, unified_df: pd.DataFrame) -> Dict[str, List[str]]:
+        """
+        BUG fix (mock-dataset swap test, July 2026): produce_full_predictions_table() was
+        listing self.trained_channels / self.trained_campaign_types / self.top_campaign_names,
+        which are frozen into model.pkl at whatever local training run last happened. If the
+        held-out/mock data handed to predict.py at grading time contains channels, campaign
+        types, or campaign names that didn't exist in that training run, they silently never
+        appear as rows in predictions.csv — even though forecast_dimension()'s Universal
+        Fallback can score any unseen entity just fine once it's told the entity's name exists.
+
+        This derives the "which rows to build" list from whatever data is actually in front of
+        us right now, not from the pickle. It does NOT touch self.models / self.is_trained, so
+        it stays fully compliant with the "we do not retrain" contract — it only decides which
+        dimension values produce_full_predictions_table() iterates over.
+        """
+        result = {"channels": [], "campaign_types": [], "top_campaign_names": []}
+        if unified_df is None or unified_df.empty:
+            return result
+
+        if 'channel' in unified_df.columns:
+            result["channels"] = sorted(unified_df['channel'].dropna().astype(str).unique().tolist())
+        if 'campaign_type' in unified_df.columns:
+            result["campaign_types"] = sorted(unified_df['campaign_type'].dropna().astype(str).unique().tolist())
+        if 'campaign_name' in unified_df.columns and 'revenue' in unified_df.columns:
+            result["top_campaign_names"] = (
+                unified_df.groupby('campaign_name')['revenue']
+                .sum()
+                .sort_values(ascending=False)
+                .index
+                .astype(str)
+                .tolist()
+            )
+
+        logger.info(
+            f"Current held-out data dimensions: {len(result['channels'])} channels, "
+            f"{len(result['campaign_types'])} campaign types, "
+            f"{len(result['top_campaign_names'])} campaigns."
+        )
+        return result
+
     def save_models(self) -> Path:
         self.model_path.parent.mkdir(parents=True, exist_ok=True)
         artifact = {
@@ -480,9 +520,17 @@ class EnsembleForecaster:
                 # Scale the point estimate (P50) as before
                 new_p50 = orig_p50 * scale
                 
-                # Widen the uncertainty band: double the spread
+                # BUG fix (found via mock-data unseen-entity testing, July 2026): the spread
+                # was widened from the OVERALL PORTFOLIO's P90-P10 spread, not the scaled-down
+                # entity's spread — so a tiny unseen campaign (say scale=0.02) got a P50 scaled
+                # down to portfolio-size/50, but a P90 uncertainty band still sized off the full
+                # portfolio's spread (only 2x'd), producing a band thousands of times wider than
+                # its own point estimate (e.g. P50=27, P90=128,663 for a single mock campaign).
+                # Scaling the spread by the same entity-size `scale` factor first keeps the band
+                # proportional to the entity, then the 2x still reflects genuine extra
+                # uncertainty for an entity the model has never seen.
                 orig_spread = orig_p90 - orig_p10
-                new_spread = 2 * orig_spread
+                new_spread = 2 * (orig_spread * scale)
                 
                 # Calculate new P10 and P90 with widened spread around the scaled P50
                 new_p10 = new_p50 - (new_spread / 2)
@@ -544,7 +592,13 @@ class EnsembleForecaster:
 
         return results
 
-    def produce_full_predictions_table(self, start_date: pd.Timestamp) -> pd.DataFrame:
+    def produce_full_predictions_table(
+        self,
+        start_date: pd.Timestamp,
+        channels: Optional[List[str]] = None,
+        campaign_types: Optional[List[str]] = None,
+        top_campaign_names: Optional[List[str]] = None,
+    ) -> pd.DataFrame:
         rows = []
 
         ov_res = self.forecast_overall(start_date)
@@ -559,7 +613,11 @@ class EnsembleForecaster:
             })
 
         # BUG 10 fix: use the real, trained channel list instead of a hardcoded one.
-        channels = self.trained_channels if self.trained_channels else ["Google Ads", "Meta Ads", "Bing Ads"]
+        # Override fix: prefer the caller-supplied current-data list (from
+        # get_current_dimension_values()) when provided, so held-out/mock data at grading
+        # time is what determines which rows get built, not whatever was true when model.pkl
+        # was last trained locally.
+        channels = channels if channels else (self.trained_channels if self.trained_channels else ["Google Ads", "Meta Ads", "Bing Ads"])
         for ch in channels:
             ch_res = self.forecast_dimension("channel", ch, start_date)
             for win, metrics in ch_res.items():
@@ -576,7 +634,7 @@ class EnsembleForecaster:
         # PERFORMANCE_MAX (66% of Google Ads spend), SHOPPING, VIDEO, DEMAND_GEN, and Bing's
         # PerformanceMax/Audience types from the scored output file, despite trained models for
         # all of them already existing in model.pkl (see ctype_PERFORMANCE_MAX_revenue etc.).
-        ctypes = self.trained_campaign_types if self.trained_campaign_types else ["SEARCH", "SOCIAL"]
+        ctypes = campaign_types if campaign_types else (self.trained_campaign_types if self.trained_campaign_types else ["SEARCH", "SOCIAL"])
         for ct in ctypes:
             ct_res = self.forecast_dimension("campaign_type", ct, start_date)
             for win, metrics in ct_res.items():
@@ -589,7 +647,7 @@ class EnsembleForecaster:
                     "metric": "ROAS", "p10": metrics["ROAS_P10"], "p50": metrics["ROAS_P50"], "p90": metrics["ROAS_P90"]
                 })
 
-        top_camps = self.top_campaign_names if self.top_campaign_names else ["Search_Campaign_01", "Generic_Campaign_02", "Search_TM_Campaign_01"]
+        top_camps = top_campaign_names if top_campaign_names else (self.top_campaign_names if self.top_campaign_names else ["Search_Campaign_01", "Generic_Campaign_02", "Search_TM_Campaign_01"])
         for camp in top_camps[:10]:
             camp_res = self.forecast_dimension("campaign", camp, start_date)
             for win, metrics in camp_res.items():

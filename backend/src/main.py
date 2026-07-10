@@ -107,9 +107,22 @@ def get_analytics_state() -> Dict[str, Any]:
         forecaster = EnsembleForecaster(validation_engine=val_engine)
         forecaster.load_models()
 
+        # BUG fix (consistency with predict.py's CLI path): the backend previously never
+        # called refresh_recent_context(), so the live dashboard's recent-conditions anchor
+        # stayed frozen at whatever was true when model.pkl was last trained locally, and
+        # produce_full_predictions_table() below iterated the pickle's frozen dimension lists
+        # instead of whatever channels/campaign types/campaigns are actually in df right now.
+        forecaster.refresh_recent_context(df)
+        current_dims = forecaster.get_current_dimension_values(df)
+
         start_date = df['date'].max() + pd.Timedelta(days=1)
         overall_fc = forecaster.forecast_overall(start_date)
-        preds_table = forecaster.produce_full_predictions_table(start_date)
+        preds_table = forecaster.produce_full_predictions_table(
+            start_date,
+            channels=current_dims["channels"],
+            campaign_types=current_dims["campaign_types"],
+            top_campaign_names=current_dims["top_campaign_names"],
+        )
 
         risk_engine = RiskIntelligenceEngine(df, data_quality_score=summary['data_quality_score'])
         risk_profile = risk_engine.evaluate_risk()
@@ -214,6 +227,7 @@ def get_analytics_state() -> Dict[str, Any]:
         CACHE["df"] = df
         CACHE["summary"] = summary
         CACHE["forecaster"] = forecaster
+        CACHE["current_dims"] = current_dims
         CACHE["overall_fc"] = overall_fc
         CACHE["preds_table"] = preds_table
         CACHE["risk_profile"] = risk_profile
@@ -384,16 +398,20 @@ def get_probabilistic_forecasts(dimension: str = Query("Overall")):
 @app.get("/api/dimensions")
 def get_available_dimensions():
     """
-    BUG 17 fix: exposes the REAL set of channels and campaign types the model was trained
-    on (the same trained_channels/trained_campaign_types captured by the BUG 10 fix), so the
-    frontend's dimension filter buttons stop hardcoding ["SEARCH","SOCIAL"] and can render
-    whatever the data and model actually support — including PERFORMANCE_MAX, SHOPPING, etc.
+    BUG 17 fix: exposes the REAL set of channels and campaign types, so the frontend's
+    dimension filter buttons stop hardcoding ["SEARCH","SOCIAL"] and can render whatever the
+    data and model actually support — including PERFORMANCE_MAX, SHOPPING, etc.
+
+    Follow-up fix: reads from current_dims (derived from the actual data currently loaded,
+    via get_current_dimension_values()) instead of forecaster.trained_channels/
+    trained_campaign_types, which are frozen into model.pkl at last local training time and
+    can silently omit channels/types that only exist in newer or swapped-in data.
     """
     state = get_analytics_state()
-    forecaster: EnsembleForecaster = state["forecaster"]
+    current_dims = state["current_dims"]
     return {
-        "channels": forecaster.trained_channels,
-        "campaign_types": forecaster.trained_campaign_types
+        "channels": current_dims["channels"],
+        "campaign_types": current_dims["campaign_types"]
     }
 
 

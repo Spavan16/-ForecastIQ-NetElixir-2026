@@ -74,9 +74,20 @@ def main():
     # under the "we do not retrain" contract.
     forecaster.refresh_recent_context(df)
 
+    # BUG fix: build the predictions table's row list (which channels/campaign types/
+    # campaigns get scored) from the actual held-out data in `df`, not from whatever
+    # self.trained_channels/trained_campaign_types/top_campaign_names got frozen into
+    # model.pkl at the last local training run. See get_current_dimension_values() docstring.
+    current_dims = forecaster.get_current_dimension_values(df)
+
     # Produce COMPLETE Master Output CSV
     try:
-        master_preds_df = forecaster.produce_full_predictions_table(start_date)
+        master_preds_df = forecaster.produce_full_predictions_table(
+            start_date,
+            channels=current_dims["channels"],
+            campaign_types=current_dims["campaign_types"],
+            top_campaign_names=current_dims["top_campaign_names"],
+        )
         out_path.parent.mkdir(parents=True, exist_ok=True)
         master_preds_df.to_csv(out_path, index=False)
         logger.info(f"Multi-dimensional probabilistic predictions successfully exported to {out_path}")
