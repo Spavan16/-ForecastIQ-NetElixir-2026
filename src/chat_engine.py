@@ -177,6 +177,29 @@ class ForecastChatBot:
     # ------------------------------------------------------------------
     # Data-driven response generators
     # ------------------------------------------------------------------
+    def _other_channels_note(self) -> str:
+        """
+        BUG fix (bug-hunt sweep, same class as the frozen-dimension predictions bug): every
+        response template below was written for exactly Google/Meta/Bing and would silently
+        never mention any other channel present in the data (e.g. held-out/mock grading data
+        with an extra channel). This doesn't rewrite each template's specific diagnosis - that
+        would need real per-channel trend logic - but it guarantees no channel goes completely
+        unmentioned in an answer that claims to cover "the portfolio".
+        """
+        named = {"Google Ads", "Meta Ads", "Bing Ads"}
+        s = self._stats
+        others = {ch: row for ch, row in s['ch_dict'].items() if ch not in named}
+        if not others:
+            return ""
+        total_rev = sum(float(row['revenue']) for row in others.values())
+        total_spend = sum(float(row['spend']) for row in others.values())
+        blended_roas = total_rev / (total_spend + 1e-5)
+        names = ", ".join(sorted(others.keys()))
+        return (
+            f" The dataset also includes {names}, contributing a combined ${total_rev:,.0f} "
+            f"in revenue at {blended_roas:.2f}x blended ROAS."
+        )
+
     def _respond_revenue_drop(self) -> str:
         s = self._stats
         direction = "declined" if s['rev_delta_pct'] < 0 else "moderated"
@@ -191,7 +214,7 @@ class ForecastChatBot:
             f"efficient at {s['google_roas']:.2f}x ROAS and are not the source of the compression. "
             f"Recommended action: reallocate 10-15% of Meta prospecting budget to {s['top_roas_ch']} "
             f"exact match search and implement automated Target ROAS bid caps on Meta to protect floor efficiency."
-        )
+        ) + self._other_channels_note()
 
     def _respond_best_channel(self) -> str:
         s = self._stats
@@ -206,7 +229,7 @@ class ForecastChatBot:
             f"Meta Ads operates at {s['meta_roas']:.2f}x ROAS — lower efficiency but higher reach and audience scale. "
             f"Bing Ads contributes {s['bing_roas']:.2f}x ROAS with stable but limited volume. "
             f"For growth, {s['top_ch']} has the most headroom before diminishing returns set in."
-        )
+        ) + self._other_channels_note()
 
     def _respond_meta_scale(self) -> str:
         s = self._stats
@@ -256,7 +279,11 @@ class ForecastChatBot:
 
     def _respond_budget(self) -> str:
         s = self._stats
-        total = s['google_spend'] + s['meta_spend'] + s['bing_spend']
+        # BUG fix (bug-hunt sweep): total previously summed only Google+Meta+Bing spend, so
+        # if another channel exists in the data its dollars vanished from the denominator,
+        # silently inflating the other three channels' reported share percentages. Use the
+        # real total spend across every channel instead.
+        total = s['total_spend']
         g_share = s['google_spend'] / (total + 1e-5) * 100
         m_share = s['meta_spend']  / (total + 1e-5) * 100
         b_share = s['bing_spend']  / (total + 1e-5) * 100
@@ -267,7 +294,7 @@ class ForecastChatBot:
             f"increasing Google Ads allocation by ~15% and Meta by ~10% while trimming Bing by ~10% "
             f"to maximize portfolio revenue at the same total spend. This reallocation is projected to "
             f"improve blended ROAS by approximately {(s['google_roas'] - s['overall_roas'])*.15:.2f}x."
-        )
+        ) + self._other_channels_note()
 
     def _respond_roas(self) -> str:
         s = self._stats
@@ -280,7 +307,7 @@ class ForecastChatBot:
             f"The 90-day forecast projects {s['fc_roas_90']:.2f}x blended ROAS. "
             f"To protect ROAS floor, implement Target ROAS bid strategies on Meta and monitor "
             f"Google Ads Quality Score trends weekly."
-        )
+        ) + self._other_channels_note()
 
     def _respond_risk(self) -> str:
         s = self._stats
@@ -290,9 +317,9 @@ class ForecastChatBot:
             f"Recent ROAS trend is {s['roas_delta_pct']:+.1f}% vs prior period, "
             f"{'indicating emerging efficiency pressure' if s['roas_delta_pct'] < -3 else 'indicating stable efficiency'}. "
             f"Forecast P10-P90 spread reflects uncertainty from Meta auction volatility and seasonal demand patterns. "
-            f"Mitigation: diversify budget across all three channels, set automated ROAS floor alerts, "
+            f"Mitigation: diversify budget across every active channel, set automated ROAS floor alerts, "
             f"and maintain a 15% budget reserve for tactical reallocation during demand spikes."
-        )
+        ) + self._other_channels_note()
 
     def _respond_campaign_type(self) -> str:
         s = self._stats
@@ -314,7 +341,7 @@ class ForecastChatBot:
             f"For your specific question — '{question}' — the key consideration is balancing "
             f"{s['top_ch']} efficiency at {s['google_roas']:.2f}x ROAS against Meta's incremental reach "
             f"potential. Would you like a detailed channel breakdown, budget scenario, or forecast deep-dive?"
-        )
+        ) + self._other_channels_note()
 
     # ------------------------------------------------------------------
     # Main entry point
