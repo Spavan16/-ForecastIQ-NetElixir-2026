@@ -200,20 +200,109 @@ class ForecastChatBot:
             f"in revenue at {blended_roas:.2f}x blended ROAS."
         )
 
+    def _channel_trend_analysis(self) -> Dict[str, Any]:
+        """
+        BUG fix (bug-hunt sweep - flagged item from the earlier pass): `_respond_revenue_drop()`
+        used to hardcode "the primary causal factor is... Meta Ads CPMs have risen" regardless
+        of which channel is actually declining, and separately referenced
+        `{s['top_ch']} search campaigns remain efficient at {s['google_roas']}x` - a real bug
+        where the *name* (top_ch, whichever channel actually leads revenue) and the *number*
+        (google_roas, always Google's) could mismatch whenever a non-Google channel led revenue.
+
+        Computes real recent-30d-vs-prior-30d trend per channel (revenue, ROAS, and CPM where
+        impressions data exists) so the diagnosis can name whichever channel is actually
+        declining and whichever channel is actually stable, with real numbers for both.
+        """
+        df = self.historical_df
+        max_date = df['date'].max()
+        recent = df[df['date'] >= max_date - pd.Timedelta(days=30)]
+        prior  = df[(df['date'] >= max_date - pd.Timedelta(days=60)) & (df['date'] < max_date - pd.Timedelta(days=30))]
+
+        trends: Dict[str, Any] = {}
+        for ch in df['channel'].unique():
+            ch_recent = recent[recent['channel'] == ch]
+            ch_prior  = prior[prior['channel'] == ch]
+            rev_r, rev_p = float(ch_recent['revenue'].sum()), float(ch_prior['revenue'].sum())
+            spend_r, spend_p = float(ch_recent['spend'].sum()), float(ch_prior['spend'].sum())
+            roas_r = rev_r / (spend_r + 1e-5)
+            roas_p = rev_p / (spend_p + 1e-5)
+            rev_delta_pct = (rev_r - rev_p) / (rev_p + 1e-5) * 100.0 if rev_p > 0 else 0.0
+
+            cpm_r = cpm_p = None
+            if 'impressions' in df.columns:
+                impr_r = float(ch_recent['impressions'].sum())
+                impr_p = float(ch_prior['impressions'].sum())
+                if impr_r > 0:
+                    cpm_r = spend_r / impr_r * 1000.0
+                if impr_p > 0:
+                    cpm_p = spend_p / impr_p * 1000.0
+
+            trends[ch] = {
+                "rev_recent": rev_r, "rev_prior": rev_p, "rev_delta_pct": rev_delta_pct,
+                "roas_recent": roas_r, "roas_prior": roas_p,
+                "cpm_recent": cpm_r, "cpm_prior": cpm_p,
+            }
+
+        # Only channels with real prior-period spend can have a meaningful decline % (avoids
+        # a brand-new channel with $0 prior looking like an infinite/undefined decline).
+        eligible = {ch: t for ch, t in trends.items() if t["rev_prior"] > 0}
+        declining_channel = min(eligible, key=lambda c: eligible[c]["rev_delta_pct"]) if eligible else None
+        # "Stable anchor" = highest recent ROAS among channels that are NOT the declining one.
+        stable_candidates = {ch: t for ch, t in trends.items() if ch != declining_channel}
+        stable_channel = max(stable_candidates, key=lambda c: stable_candidates[c]["roas_recent"]) if stable_candidates else None
+
+        return {"trends": trends, "declining_channel": declining_channel, "stable_channel": stable_channel}
+
     def _respond_revenue_drop(self) -> str:
         s = self._stats
         direction = "declined" if s['rev_delta_pct'] < 0 else "moderated"
         delta_abs  = abs(s['rev_recent'] - s['rev_prior'])
         roas_dir   = "compressed" if s['roas_delta_pct'] < 0 else "held steady"
+
+        trend = self._channel_trend_analysis()
+        decl_ch = trend['declining_channel']
+        stable_ch = trend['stable_channel']
+
+        if decl_ch and trend['trends'][decl_ch]['rev_delta_pct'] < 0:
+            d = trend['trends'][decl_ch]
+            cpm_note = ""
+            if d['cpm_recent'] is not None and d['cpm_prior'] not in (None, 0):
+                cpm_delta_pct = (d['cpm_recent'] - d['cpm_prior']) / d['cpm_prior'] * 100.0
+                if cpm_delta_pct > 0:
+                    cpm_note = (
+                        f" CPMs on {decl_ch} rose {cpm_delta_pct:.0f}% over the same window, "
+                        f"consistent with rising auction competition."
+                    )
+            causal_text = (
+                f"The primary causal factor is {decl_ch}, whose revenue fell {abs(d['rev_delta_pct']):.1f}% "
+                f"over the same window (${d['rev_recent']:,.0f} vs ${d['rev_prior']:,.0f} prior) as its ROAS "
+                f"moved from {d['roas_prior']:.2f}x to {d['roas_recent']:.2f}x.{cpm_note}"
+            )
+        else:
+            causal_text = (
+                "No single channel shows a clear standalone decline over the same window — the softness "
+                "looks distributed across the portfolio rather than concentrated in one channel."
+            )
+
+        anchor_text = ""
+        recommendation = ""
+        if stable_ch:
+            st = trend['trends'][stable_ch]
+            anchor_text = (
+                f" {stable_ch} campaigns remain efficient at {st['roas_recent']:.2f}x ROAS and are not "
+                f"the source of the compression."
+            )
+            if decl_ch and decl_ch != stable_ch:
+                recommendation = (
+                    f" Recommended action: reallocate 10-15% of {decl_ch} budget toward {stable_ch} "
+                    f"and implement automated Target ROAS bid caps on {decl_ch} to protect floor efficiency."
+                )
+
         return (
             f"Revenue {direction} by {abs(s['rev_delta_pct']):.1f}% in the most recent 30-day cohort "
             f"(${s['rev_recent']:,.0f} vs ${s['rev_prior']:,.0f} prior period, a ${delta_abs:,.0f} shift). "
             f"Blended ROAS {roas_dir} at {s['roas_recent']:.2f}x vs {s['roas_prior']:.2f}x. "
-            f"The primary causal factor is increased auction competition — Meta Ads CPMs have risen while "
-            f"conversion rates on prospecting audiences softened. {s['top_ch']} search campaigns remain "
-            f"efficient at {s['google_roas']:.2f}x ROAS and are not the source of the compression. "
-            f"Recommended action: reallocate 10-15% of Meta prospecting budget to {s['top_roas_ch']} "
-            f"exact match search and implement automated Target ROAS bid caps on Meta to protect floor efficiency."
+            f"{causal_text}{anchor_text}{recommendation}"
         ) + self._other_channels_note()
 
     def _respond_best_channel(self) -> str:
