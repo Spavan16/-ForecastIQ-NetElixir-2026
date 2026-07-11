@@ -36,7 +36,13 @@ class MockLLMProvider(BaseLLMProvider):
     template-based executive summaries when no LLM API key is configured.
     """
     def generate_insight(self, prompt: str, context: Optional[Dict[str, Any]] = None) -> str:
-        # Generate rich contextual responses if context is provided
+        # BUG fix (bug-hunt sweep): this used to hardcode specific channel-level claims
+        # ("Google Ads provides high revenue stability, but Meta Ads shows elevated CPC
+        # volatility"...) regardless of what `context` actually contains - context here only
+        # ever carries revenue_90d/roas_90d in this codebase, no per-channel breakdown, so
+        # those claims were never derived from anything. Kept the two real numbers this
+        # method IS given, removed the fabricated channel-specific claims, and pointed to the
+        # tabs that actually compute them instead of asserting a guess.
         total_rev = "$14.6M"
         overall_roas = "4.25x"
         if context and "revenue_90d" in context:
@@ -47,54 +53,108 @@ class MockLLMProvider(BaseLLMProvider):
 
         if "risk" in prompt.lower() or "volatility" in prompt.lower():
             return (
-                "[Mock Insight Mode Enabled] Risk Assessment: The portfolio exhibits a Medium risk profile (Score: 42/100). "
-                "Google Ads provides high revenue stability, but Meta Ads shows elevated CPC volatility during peak auction hours. "
-                "Recommendation: Maintain existing search capture while setting hard CPA caps on Meta prospecting."
+                "[Mock Insight Mode Enabled] Risk Assessment: portfolio risk depends on recent "
+                "ROAS volatility and channel concentration - see the Risk tab for the exact "
+                "classification and driving factors. Recommendation: set CPA/CPC caps on "
+                "whichever channel is currently showing the highest volatility."
             )
         elif "budget" in prompt.lower() or "allocate" in prompt.lower():
             return (
-                f"[Mock Insight Mode Enabled] Strategic Budget Recommendations: To maximize total revenue beyond {total_rev}, "
-                "shift 15% of underperforming Bing top-of-funnel spend into Google Ads exact match search campaigns. "
-                f"This re-allocation is simulated to lift total ROAS from {overall_roas} to 4.65x with 88% confidence."
+                f"[Mock Insight Mode Enabled] Strategic Budget Recommendations: to maximize total "
+                f"revenue beyond {total_rev}, run the Optuna budget optimizer to find the exact "
+                f"revenue-maximizing spend split across your active channels at the current "
+                f"{overall_roas} blended ROAS."
             )
         elif "causal" in prompt.lower() or "summary" in prompt.lower():
             return (
-                f"[Mock Insight Mode Enabled] Causal Inference Summary: Historical revenue growth ({total_rev} projected over 90 days) "
-                f"is primarily driven by sustained search capture on Google Ads (53% contribution) and highly efficient remarketing on Meta Ads. "
-                f"ROAS efficiency ({overall_roas}) remains highly sensitive to Meta CPM spikes during seasonal high-competition events."
+                f"[Mock Insight Mode Enabled] Causal Inference Summary: historical revenue growth "
+                f"({total_rev} projected over 90 days) is concentrated in your highest-volume "
+                f"channels - see the Explainability tab for the exact SHAP-ranked channel and "
+                f"campaign contributions. Blended ROAS ({overall_roas}) is most sensitive to "
+                f"whichever channel is showing the highest CPM/CPC volatility right now."
             )
         else:
             return (
-                f"[Mock Insight Mode Enabled] Executive AI Analyst Summary: The 90-day multi-channel forecast projects a robust performance "
-                f"with total expected revenue reaching {total_rev} and an aggregate ROAS of {overall_roas}. "
-                "Performance across Google, Meta, and Bing indicates stable customer acquisition, with Google Search acting as the primary revenue bedrock."
+                f"[Mock Insight Mode Enabled] Executive AI Analyst Summary: the 90-day multi-channel "
+                f"forecast projects total expected revenue reaching {total_rev} at an aggregate ROAS "
+                f"of {overall_roas}. See the Channel Importance panel for which channel is currently "
+                f"acting as the primary revenue bedrock."
             )
 
     def ask_question(self, question: str, analytics_context: Dict[str, Any]) -> str:
+        # BUG fix (bug-hunt sweep): this used to completely ignore analytics_context and
+        # return fixed canned numbers ($340,000, "3.8x to 3.55x", "over 50%"...) regardless
+        # of the real data - directly contradicting this class's own docstring claim of
+        # "no hardcoded numbers". This IS reachable in production: GeminiProvider.ask_question()
+        # falls back to MockLLMProvider().ask_question() whenever the live Gemini call fails
+        # (rate limit/outage) even though a GEMINI_API_KEY is configured - observed live
+        # during this session's testing (429s on a real, currently-rate-limited key). Now
+        # builds real prose from the context dict chat_engine.py actually passes (channel
+        # breakdown is a plain dict, so this works for any number of channels, not just 3).
+        ctx = analytics_context or {}
         q = question.lower()
+        total_rev = float(ctx.get("total_historical_revenue", 0.0))
+        total_spend = float(ctx.get("total_historical_spend", 0.0))
+        overall_roas = float(ctx.get("overall_historical_roas", 0.0))
+        fc_rev_90 = float(ctx.get("forecast_90d_p50_revenue", 0.0))
+        fc_roas_90 = float(ctx.get("forecast_90d_p50_roas", overall_roas))
+        roas_trend = float(ctx.get("roas_trend_30d_pct", 0.0))
+        rev_trend = float(ctx.get("revenue_trend_30d_pct", 0.0))
+        channels: Dict[str, Any] = ctx.get("channel_breakdown", {}) or {}
+
+        def _top_channel(key: str):
+            if not channels:
+                return None, 0.0
+            best = max(channels.items(), key=lambda kv: kv[1].get(key, 0.0))
+            return best[0], float(best[1].get(key, 0.0))
+
+        top_rev_ch, top_rev_val = _top_channel("revenue")
+        top_roas_ch, top_roas_val = _top_channel("roas")
+
+        def _channel_line() -> str:
+            if not channels:
+                return ""
+            parts = [f"{ch} {row.get('roas', 0.0):.2f}x ROAS ({row.get('share_pct', 0.0):.1f}% of revenue)"
+                     for ch, row in channels.items()]
+            return " By channel: " + ", ".join(parts) + "."
+
         if "decrease" in q or "decreasing" in q or "drop" in q or "down" in q:
+            direction = "declined" if rev_trend < 0 else "moderated"
             return (
-                "[Mock Insight Mode Enabled] Causal Analysis: Revenue or ROAS compression is typically linked to aggressive "
-                "bidding in Meta Ads during highly competitive auction windows, combined with seasonal dips in search conversion rates. "
-                "Our causal inference layer shows a strong negative correlation between Meta CPC inflation and overall daily profitability."
+                f"[Mock Insight Mode Enabled] Causal Analysis: revenue {direction} {abs(rev_trend):.1f}% "
+                f"over the most recent 30-day window, with blended ROAS moving {roas_trend:+.1f}%."
+                + (f" {top_roas_ch} remains the most efficient channel at {top_roas_val:.2f}x ROAS, "
+                   f"suggesting the compression is concentrated elsewhere in the portfolio."
+                   if top_roas_ch else "")
             )
         elif "channel" in q or "growth" in q or "best" in q:
+            if top_rev_ch:
+                return (
+                    f"[Mock Insight Mode Enabled] Channel Intelligence: {top_rev_ch} is your dominant "
+                    f"revenue driver at ${top_rev_val:,.0f} ({channels[top_rev_ch].get('share_pct', 0.0):.1f}% "
+                    f"of total). {top_roas_ch} delivers the strongest efficiency at {top_roas_val:.2f}x ROAS."
+                    + _channel_line()
+                )
             return (
-                "[Mock Insight Mode Enabled] Channel Intelligence: Google Ads is your dominant growth driver, accounting for over 50% "
-                "of total baseline revenue with a highly dependable P50 ROAS above 4.5x. Meta Ads acts as your primary volume accelerator "
-                "but requires automated budget optimization to mitigate variance."
+                f"[Mock Insight Mode Enabled] Channel Intelligence: total portfolio revenue is "
+                f"${total_rev:,.0f} at {overall_roas:.2f}x blended ROAS."
             )
-        elif "meta" in q or "increase" in q or "scale" in q:
+        elif "meta" in q or "increase" in q or "scale" in q or "budget" in q or "allocat" in q:
             return (
-                "[Mock Insight Mode Enabled] Budget Simulation: Increasing Meta Ads spend by 20% is projected to generate an incremental "
-                "$340,000 in revenue over the next 60 days. However, marginal efficiency will decrease, slightly reducing Meta ROAS from 3.8x to 3.55x. "
-                "This scenario is optimal if your overarching goal is top-line market share expansion."
+                f"[Mock Insight Mode Enabled] Budget Simulation: current blended ROAS is "
+                f"{overall_roas:.2f}x on ${total_spend:,.0f} in spend, generating ${total_rev:,.0f} "
+                f"in revenue."
+                + (f" {top_roas_ch} shows the strongest efficiency at {top_roas_val:.2f}x ROAS and is "
+                   f"the best candidate for incremental budget." if top_roas_ch else "")
+                + " Run the Optuna budget optimizer in the navigation tab for an exact "
+                  "revenue-maximizing split."
             )
         else:
             return (
-                "[Mock Insight Mode Enabled] Assistant Analyst: Based on your multi-channel marketing data, your current spend efficiency "
-                "is exceptionally healthy. To explore specific outcomes, try running a 10,000-run Monte Carlo simulation or use our Optuna budget optimizer "
-                "in the navigation tab to discover your exact revenue-maximizing media split."
+                f"[Mock Insight Mode Enabled] Assistant Analyst: total portfolio spend is "
+                f"${total_spend:,.0f} generating ${total_rev:,.0f} in revenue at {overall_roas:.2f}x "
+                f"blended ROAS. The 90-day P50 forecast is ${fc_rev_90:,.0f} at {fc_roas_90:.2f}x ROAS."
+                + _channel_line()
             )
 
     def get_provider_name(self) -> str:
