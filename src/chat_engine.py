@@ -373,17 +373,43 @@ class ForecastChatBot:
         # silently inflating the other three channels' reported share percentages. Use the
         # real total spend across every channel instead.
         total = s['total_spend']
-        g_share = s['google_spend'] / (total + 1e-5) * 100
-        m_share = s['meta_spend']  / (total + 1e-5) * 100
-        b_share = s['bing_spend']  / (total + 1e-5) * 100
+
+        # BUG fix: the recommendation direction ("increase Google/Meta, trim Bing") was a
+        # hardcoded script — it never actually consulted which channel had the best/worst
+        # ROAS. If Bing happened to be the most efficient channel in a given dataset (it is,
+        # in some backtest folds — see output/backtest_scorecard.csv), this would confidently
+        # recommend trimming the single best-performing channel. Rank all channels present in
+        # the data by real ROAS and derive the increase/trim direction from that ranking, so
+        # it stays correct regardless of which channel actually leads efficiency, and
+        # generalizes past exactly Google/Meta/Bing to however many channels exist.
+        ranked = sorted(s['ch_dict'].items(), key=lambda kv: float(kv[1]['roas']), reverse=True)
+        share_line = ", ".join(
+            f"{ch} {float(row['spend']) / (total + 1e-5) * 100:.1f}%" for ch, row in ranked
+        )
+        roas_line = ", ".join(f"{ch} {float(row['roas']):.2f}x" for ch, row in ranked)
+
+        if len(ranked) >= 2:
+            best_ch, best_row = ranked[0]
+            worst_ch, worst_row = ranked[-1]
+            mid_note = ""
+            if len(ranked) > 2:
+                mid_names = ", ".join(ch for ch, _ in ranked[1:-1])
+                mid_note = f" hold {mid_names} steady, and "
+            direction_note = (
+                f"increasing {best_ch} allocation by ~15%{(',' if mid_note else ' while')}{mid_note}"
+                f"trimming {worst_ch} by ~10%"
+            )
+            roas_gain = (float(best_row['roas']) - s['overall_roas']) * 0.15
+        else:
+            direction_note = "maintaining current allocation, since only one channel is present in this dataset"
+            roas_gain = 0.0
+
         return (
-            f"Current spend distribution: Google Ads {g_share:.1f}%, Meta Ads {m_share:.1f}%, "
-            f"Bing Ads {b_share:.1f}%. Based on ROAS efficiency — Google {s['google_roas']:.2f}x, "
-            f"Meta {s['meta_roas']:.2f}x, Bing {s['bing_roas']:.2f}x — the Optuna optimizer recommends "
-            f"increasing Google Ads allocation by ~15% and Meta by ~10% while trimming Bing by ~10% "
-            f"to maximize portfolio revenue at the same total spend. This reallocation is projected to "
-            f"improve blended ROAS by approximately {(s['google_roas'] - s['overall_roas'])*.15:.2f}x."
-        ) + self._other_channels_note()
+            f"Current spend distribution: {share_line}. Based on ROAS efficiency — {roas_line} — "
+            f"the Optuna optimizer recommends {direction_note} to maximize portfolio revenue at the "
+            f"same total spend. This reallocation is projected to improve blended ROAS by "
+            f"approximately {roas_gain:.2f}x."
+        )
 
     def _respond_roas(self) -> str:
         s = self._stats
@@ -423,13 +449,32 @@ class ForecastChatBot:
 
     def _respond_general(self, question: str) -> str:
         s = self._stats
+        # BUG fix (same class as the already-fixed _respond_revenue_drop bug): this used to
+        # label the sentence with s['top_ch'] (whichever channel actually leads revenue) but
+        # always report s['google_roas'] regardless of what top_ch actually was — so if Meta
+        # or Bing led revenue, the response would confidently state a Google number under a
+        # different channel's name. Look up the real ROAS for top_ch from ch_dict instead, and
+        # pick the genuine second-largest-revenue channel as the reach comparison instead of
+        # a hardcoded "Meta" (which may not even be top_ch's actual runner-up, or may not
+        # exist at all in held-out data with a different channel mix).
+        top_roas = float(s['ch_dict'].get(s['top_ch'], {}).get('roas', 0.0))
+        others_by_rev = sorted(
+            (ch for ch in s['ch_dict'] if ch != s['top_ch']),
+            key=lambda ch: float(s['ch_dict'][ch]['revenue']),
+            reverse=True,
+        )
+        reach_note = ""
+        if others_by_rev:
+            runner_up = others_by_rev[0]
+            reach_note = f" against {runner_up}'s incremental reach potential"
+
         return (
             f"Based on the audited dataset: total portfolio spend is ${s['total_spend']:,.0f} generating "
             f"${s['total_rev']:,.0f} in revenue at {s['overall_roas']:.2f}x blended ROAS. "
             f"Leading channel is {s['top_ch']} by revenue. 90-day P50 forecast is ${s['fc_rev_90']:,.0f}. "
             f"For your specific question — '{question}' — the key consideration is balancing "
-            f"{s['top_ch']} efficiency at {s['google_roas']:.2f}x ROAS against Meta's incremental reach "
-            f"potential. Would you like a detailed channel breakdown, budget scenario, or forecast deep-dive?"
+            f"{s['top_ch']} efficiency at {top_roas:.2f}x ROAS{reach_note}. "
+            f"Would you like a detailed channel breakdown, budget scenario, or forecast deep-dive?"
         ) + self._other_channels_note()
 
     # ------------------------------------------------------------------
