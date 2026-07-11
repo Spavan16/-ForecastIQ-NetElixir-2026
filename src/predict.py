@@ -51,7 +51,16 @@ def main():
     # Load Model Artifact
     forecaster = EnsembleForecaster(model_path=model_path)
     if not forecaster.load_models():
-        logger.warning(f"Pickled model missing or invalid at '{model_path}'. Training instant backup ensemble on test data.")
+        # BUG fix: this used to be logger.warning(), which blends into normal INFO-level run
+        # output. Loading the real trained ensemble is the whole point of the "we do not
+        # retrain" contract (see Hackathon Submission Guide, Section 5) — a version mismatch
+        # between the environment model.pkl was pickled with and the grading environment is
+        # explicitly called out there as the single most common submission failure. If that
+        # happens, this fallback still produces a valid predictions.csv (so the run doesn't
+        # hard-fail), but it's silently a materially weaker model than the tuned ensemble.
+        # Logging at ERROR makes this unmissable in run output instead of scrolling past
+        # unnoticed alongside routine INFO/WARNING lines.
+        logger.error(f"Pickled model missing or invalid at '{model_path}'. Training instant backup ensemble on test data instead of using the trained ensemble.")
         try:
             daily = df.groupby('date').agg({'revenue': 'sum', 'spend': 'sum'}).reset_index()
             daily['month'] = daily['date'].dt.month
