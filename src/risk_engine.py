@@ -49,6 +49,29 @@ class RiskIntelligenceEngine:
         cv_roas = float(weekly_roas.std() / (weekly_roas.mean() + 1e-5))
         roas_inst_score = min(100.0, max(0.0, cv_roas * 120.0))
 
+        # BUG fix (bug-hunt sweep, same failure class as chat_engine.py's hardcoded-Meta
+        # diagnosis): the ROAS Instability mitigation copy below used to hardcode "Meta"
+        # regardless of which channel is actually driving the volatility. Derive the real
+        # most-volatile channel from the data using the same weekly-ROAS-CV logic as the
+        # portfolio-level score above, just grouped per channel. Falls back to a generic
+        # "underperforming" phrase if there's too little per-channel weekly data to compute
+        # a CV for any channel (e.g. a very short history), rather than guessing a name.
+        most_volatile_channel = None
+        best_cv = -1.0
+        for ch, ch_df in self.historical_df.groupby('channel'):
+            ch_weekly = ch_df.groupby(pd.Grouper(key='date', freq='W')).agg(
+                revenue=('revenue', 'sum'), spend=('spend', 'sum')
+            )
+            ch_roas = ch_weekly['revenue'] / (ch_weekly['spend'] + 1e-5)
+            ch_roas = ch_roas[ch_roas > 0]
+            if len(ch_roas) < 2:
+                continue
+            ch_cv = float(ch_roas.std() / (ch_roas.mean() + 1e-5))
+            if ch_cv > best_cv:
+                best_cv = ch_cv
+                most_volatile_channel = str(ch)
+        volatile_channel_phrase = most_volatile_channel if most_volatile_channel else "underperforming"
+
         # 4. Data Quality Issues Score (0-100)
         # Inversely proportional to Data Quality Score
         data_risk_score = 100.0 - self.data_quality_score
@@ -107,14 +130,19 @@ class RiskIntelligenceEngine:
                 "score": round(roas_inst_score, 1),
                 "status": "Volatile" if roas_inst_score > 50 else "Stable",
                 "impact": "High",
-                "mitigation": "Enforce rigorous Target CPA / Target ROAS bid floor rules across all Meta generic and non-brand campaigns to prevent runaway spend."
+                "mitigation": f"Enforce rigorous Target CPA / Target ROAS bid floor rules across all {volatile_channel_phrase} generic and non-brand campaigns to prevent runaway spend."
             },
             {
                 "name": "Data Quality Audit",
                 "score": round(data_risk_score, 1),
                 "status": "Excellent" if data_risk_score < 10 else "Action Required",
                 "impact": "Low",
-                "mitigation": f"Validation engine verified a {self.data_quality_score}/100 schema score. Ensure Bing campaign UTM tracking tags are consistently appended."
+                # BUG fix (bug-hunt sweep): hardcoded "Bing" regardless of which channel's
+                # data actually has quality issues. RiskIntelligenceEngine only receives a
+                # single aggregate data_quality_score float (no per-channel breakdown is
+                # passed in from ValidationEngine), so there's no real basis to name any
+                # specific channel here - genericized instead of guessing one.
+                "mitigation": f"Validation engine verified a {self.data_quality_score}/100 schema score. Ensure UTM tracking tags are consistently and correctly appended across all ingested channel campaigns."
             }
         ]
 
