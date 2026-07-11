@@ -355,6 +355,23 @@ class ValidationEngine:
         meta_file = [f for f in all_files if "meta" in f.name.lower() and f.suffix.lower() == ".csv"]
         bing_file = [f for f in all_files if "bing" in f.name.lower() and f.suffix.lower() == ".csv"]
 
+        # BUG fix (bug-hunt sweep): a CSV that doesn't match google/meta/bing in its filename
+        # (e.g. a 4th channel's export) was silently ignored with zero trace anywhere - not a
+        # log line, not a warning. There's no generic parser to actually ingest an unknown
+        # platform's schema (Google/Meta/Bing each have real, genuinely different native
+        # export formats), so this can't be auto-ingested, but a human should at least be
+        # told it exists instead of it vanishing invisibly.
+        recognized = set(google_file) | set(meta_file) | set(bing_file)
+        unrecognized = [f for f in all_files if f.suffix.lower() == ".csv" and f not in recognized]
+        if unrecognized:
+            names = ", ".join(f.name for f in unrecognized)
+            self._log_issue(
+                f"Found {len(unrecognized)} CSV file(s) in data directory not recognized as "
+                f"Google/Meta/Bing exports and NOT ingested: {names}. If this represents a new "
+                f"channel, it needs a dedicated validate_*() parser added to this file.",
+                penalty=10.0
+            )
+
         dfs = []
         
         # Load Google
