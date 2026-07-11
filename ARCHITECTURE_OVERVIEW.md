@@ -17,13 +17,13 @@ data/ (CSV inputs)
     │    pickle/model.pkl   ← pre-trained, committed to repo
     │
     ▼
-[MonteCarloSimulator]       ← 1000-iteration portfolio simulation → P10/P50/P90
+[MonteCarloSimulator]       ← 10,000-iteration portfolio simulation → P10/P50/P90
     │
     ▼
 output/predictions.csv      ← scored deliverable
     │
     ▼
-[FastAPI Backend]           ← 13 REST endpoints serving live analytics
+[FastAPI Backend]           ← 17 REST endpoints serving live analytics
     │
     ▼
 [Next.js Frontend]          ← executive dashboard UI
@@ -53,13 +53,13 @@ The frontend is a single-page executive dashboard with nine views: Overview, Dat
 | Framework | FastAPI |
 | Server | Uvicorn |
 | Language | Python 3.11+ |
-| Data layer | SQLite via SQLAlchemy (models defined in `src/database.py`, not yet wired into any endpoint — see note below) |
+| Data layer | SQLite via SQLAlchemy (models defined in `src/database.py`, actively wired into `/api/runs` and a persist-on-every-computed-run audit trail — see note below) |
 | Serialization | Pydantic v2 |
 | PDF generation | ReportLab |
 
-The backend exposes 15 REST endpoints under `/api/`. All heavy computation (forecasting, SHAP, Monte Carlo, optimization) runs once on startup and is cached in-memory for sub-millisecond subsequent API responses. Cache invalidation is triggered by file modification timestamps on the `data/` CSVs.
+The backend exposes 17 REST endpoints under `/api/`. All heavy computation (forecasting, SHAP, Monte Carlo, optimization) runs once on startup and is cached in-memory (behind a lock, so concurrent requests during a cold cache trigger exactly one rebuild, not one per request) for sub-millisecond subsequent API responses. Cache invalidation is triggered by file modification timestamps on the `data/` CSVs.
 
-**Note on `src/database.py`:** a full SQLAlchemy persistence layer (`User`, `UploadedDataset`, `ForecastRun`, `Scenario`, `Report` models) exists in the codebase but is not currently imported or called by any endpoint below. It's scaffolding for a future "save/revisit past runs" feature, not part of the active request path today.
+**Note on `src/database.py`:** a full SQLAlchemy persistence layer (`User`, `UploadedDataset`, `ForecastRun`, `Scenario`, `Report` models) is wired into the live request path - every time the analytics cache is (re)computed, the resulting run is persisted via `save_forecast_run()`, and `/api/runs` reads that history back out as an audit trail. `User`/`UploadedDataset`/`Scenario`/`Report` remain scaffolding for a future multi-user "save/revisit past runs" feature beyond the current single-tenant dashboard.
 
 ### API Endpoints
 
@@ -67,17 +67,19 @@ The backend exposes 15 REST endpoints under `/api/`. All heavy computation (fore
 |---|---|---|
 | `/api/status` | GET | System health, LLM provider, data quality score |
 | `/api/overview` | GET | Executive KPIs, 90-day trajectory, channel attribution |
-| `/api/forecasts` | GET | P10/P50/P90 by dimension (Overall/Channel/CampaignType/Campaign) |
-| `/api/dimensions` | GET | Real set of channels and campaign types the model was trained on |
 | `/api/trajectory` | GET | 90-day daily revenue trajectory for area chart |
 | `/api/validation` | GET | Full data quality audit report |
+| `/api/model-validation` | GET | Backtest/model validation scorecard |
+| `/api/forecasts` | GET | P10/P50/P90 by dimension (Overall/Channel/CampaignType/Campaign) |
+| `/api/dimensions` | GET | Real set of channels and campaign types present in the current data |
 | `/api/simulations` | GET | Monte Carlo portfolio simulation results |
-| `/api/simulate-budget` | POST | What-if budget change simulation |
-| `/api/optimize-budget` | POST | Optuna budget allocation optimizer |
+| `/api/simulate-budget` | POST | What-if budget change simulation (any channel present in the data) |
+| `/api/optimize-budget` | POST | Optuna budget allocation optimizer (any channel present in the data) |
 | `/api/scenarios` | GET | Bull/Base/Bear scenario projections |
 | `/api/explainability` | GET | SHAP feature importance for revenue and ROAS |
 | `/api/risk` | GET | Risk profile with factor scores and mitigations |
 | `/api/insights` | GET | Rule-based executive insights and recommendations |
+| `/api/runs` | GET | Recent persisted forecast runs (SQLite audit trail) |
 | `/api/chat` | POST | Conversational AI query answering |
 | `/api/report/pdf` | GET | Download executive PDF report |
 
