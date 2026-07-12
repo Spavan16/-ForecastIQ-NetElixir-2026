@@ -4,7 +4,7 @@
 **Team:** Team ForecastIQ  
 **Members:** Pavan Kumar S (ENG24AD0047), Rohindth  
 **College / Institution:** Dayananda Sagar University, Bengaluru  
-**Challenge:** NetElixir AIgnition 2026 Hackathon Challenge  
+**Challenge:** NetElixir AIgnition 3.0 Hackathon Challenge  
 **Python Version:** 3.11+
 
 ---
@@ -212,4 +212,4 @@ npm run dev
 8. **Export Reports:** Click the `Export Executive PDF` button to instantly download your pristine ReportLab PDF document.
 
 ---
-*Built with analytical rigor by Pavan Kumar S & Rohindth, Dayananda Sagar University — NetElixir AIgnition 2026.*
+*Built with analytical rigor by Pavan Kumar S & Rohindth, Dayananda Sagar University — NetElixir AIgnition 3.0.*
