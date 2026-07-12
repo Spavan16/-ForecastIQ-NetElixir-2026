@@ -37,44 +37,88 @@ class RuleInsightEngine:
 
         risk_score = self.risk_profile.get("risk_score", 45.0)
 
+        # BUG fix (same class as the budget_recommendations / growth_opps fixes below): needed
+        # earlier now so the Executive Summary can name the real efficiency anchor and real
+        # momentum driver instead of a hardcoded "Search... social..." claim that has no basis
+        # in this specific dataset and could be flatly wrong (e.g. if Shopping or PMax is
+        # actually the efficiency anchor, or if Meta is flat rather than driving demand).
+        channel_agg_early = self.historical_df.groupby('channel').agg(
+            spend=('spend', 'sum'), revenue=('revenue', 'sum')
+        )
+        channel_agg_early['roas'] = channel_agg_early['revenue'] / (channel_agg_early['spend'] + 1e-5)
+        efficiency_anchor = str(channel_agg_early['roas'].idxmax()) if len(channel_agg_early) else "the leading channel"
+        recent_spend_by_ch_early = recent_30d.groupby('channel')['spend'].sum()
+        prev_spend_by_ch_early = prev_30d.groupby('channel')['spend'].sum()
+        momentum_candidates = {
+            ch: (float(recent_spend_by_ch_early.get(ch, 0.0)) / (float(prev_spend_by_ch_early.get(ch, 0.0)) + 1e-5))
+            for ch in channel_agg_early.index if ch != efficiency_anchor
+        }
+        momentum_driver = max(momentum_candidates, key=momentum_candidates.get) if momentum_candidates else efficiency_anchor
+
         # 1. Executive Summary
         exec_summary = (
             f"Over the full historical timeline, ForecastIQ has audited ${total_spend/1e6:.2f}M in digital marketing spend "
             f"yielding ${total_revenue/1e6:.2f}M in revenue (Portfolio ROAS: {overall_roas:.2f}x). "
             f"Our 90-day probabilistic ensemble projects sustained top-line stability with a P50 expected capture of "
-            f"${self.forecast_90d.get('Revenue_P50', 500000)/1e6:.2f}M. Search campaigns continue to function as your high-efficiency anchor, "
-            "while social prospecting provides scalable incremental demand."
+            f"${self.forecast_90d.get('Revenue_P50', 500000)/1e6:.2f}M. {efficiency_anchor} continues to function as your high-efficiency anchor "
+            f"at {float(channel_agg_early.loc[efficiency_anchor, 'roas']):.2f}x ROAS, "
+            f"while {momentum_driver} shows the strongest recent spend momentum for scalable incremental demand."
         )
 
         # 2. Growth Opportunities
         growth_opps = []
-        if meta_spend_recent > meta_spend_prev * 1.05:
-            growth_opps.append({
-                "title": "Meta Ads Scale Acceleration",
-                "tag": "Social Scale",
-                "insight": "Meta investment is expected to drive incremental revenue growth. Recent momentum indicates successful top-of-funnel audience penetration, creating an ideal window to increase non-brand creative testing."
-            })
-        else:
-            growth_opps.append({
-                "title": "Meta Acquisition Untapped Scale",
-                "tag": "Prospecting",
-                "insight": "Meta Ads budgets have remained static. Allocating an incremental 15% to Meta remarketing is simulated to capture highly engaged abandoned cart segments and lift overall conversion volume."
-            })
+        channels_present = set(self.historical_df['channel'].unique())
 
-        growth_opps.append({
-            "title": "Google Search High-Intent Pacing",
-            "tag": "Search Bedrock",
-            "insight": "Google Ads exact match search campaigns show zero diminishing returns at current spend levels. Re-allocating unspent budget caps to brand and top generic keywords will secure premium impression share against competitor conquesting."
-        })
+        # BUG fix: both blocks below used to fire unconditionally, regardless of whether
+        # "Meta Ads" / "Google Ads" actually exist in this dataset. On held-out grading data
+        # with a different channel mix, this would confidently generate a claim about a
+        # channel that isn't in the data at all. Guard both on real presence; channels not
+        # covered here fall through to the generic per-channel loop below instead of being
+        # silently skipped.
+        covered_channels = set()
+        if "Meta Ads" in channels_present:
+            covered_channels.add("Meta Ads")
+            if meta_spend_recent > meta_spend_prev * 1.05:
+                growth_opps.append({
+                    "title": "Meta Ads Scale Acceleration",
+                    "tag": "Social Scale",
+                    "insight": "Meta investment is expected to drive incremental revenue growth. Recent momentum indicates successful top-of-funnel audience penetration, creating an ideal window to increase non-brand creative testing."
+                })
+            else:
+                growth_opps.append({
+                    "title": "Meta Acquisition Untapped Scale",
+                    "tag": "Prospecting",
+                    "insight": "Meta Ads budgets have remained static. Allocating an incremental 15% to Meta remarketing is simulated to capture highly engaged abandoned cart segments and lift overall conversion volume."
+                })
+
+        if "Google Ads" in channels_present:
+            covered_channels.add("Google Ads")
+            # BUG fix: "zero diminishing returns" used to be asserted outright with no check.
+            # Only make that specific claim if Google's own recent-vs-prior ROAS actually
+            # supports it; otherwise give the accurate version of the insight instead of a
+            # claim the data doesn't back up.
+            google_df = self.historical_df[self.historical_df['channel'] == 'Google Ads']
+            g_recent = google_df[google_df['date'] >= max_date - pd.Timedelta(days=30)]
+            g_prev = google_df[(google_df['date'] >= max_date - pd.Timedelta(days=60)) & (google_df['date'] < max_date - pd.Timedelta(days=30))]
+            g_roas_recent = g_recent['revenue'].sum() / (g_recent['spend'].sum() + 1e-5)
+            g_roas_prev = g_prev['revenue'].sum() / (g_prev['spend'].sum() + 1e-5)
+            if g_roas_recent >= g_roas_prev * 0.97:
+                g_insight = "Google Ads exact match search campaigns show no signs of diminishing returns at current spend levels. Re-allocating unspent budget caps to brand and top generic keywords will secure premium impression share against competitor conquesting."
+            else:
+                g_insight = f"Google Ads ROAS has softened from {g_roas_prev:.2f}x to {g_roas_recent:.2f}x as spend continued, an early diminishing-returns signal. Prioritize bid caps on lower-intent generic terms before adding further budget."
+            growth_opps.append({
+                "title": "Google Search High-Intent Pacing",
+                "tag": "Search Bedrock",
+                "insight": g_insight
+            })
 
         # BUG fix (bug-hunt sweep, same class as the budget_recommendations fix below): the two
         # opportunities above are genuinely specific to Google/Meta's real acquisition mechanics
-        # (search intent vs prospecting) and are worth keeping verbatim as-is - but that meant
+        # (search intent vs prospecting) and are worth keeping close to verbatim - but that meant
         # every OTHER channel never got a growth opportunity surfaced here at all, including
         # Bing Ads, which exists in every real run of this dataset, plus any channel only
         # present in held-out/mock grading data. Add one data-driven opportunity per remaining
         # channel from its own recent-vs-prior spend momentum, using its real name and numbers.
-        covered_channels = {"Meta Ads", "Google Ads"}
         recent_spend_by_ch = recent_30d.groupby('channel')['spend'].sum()
         prev_spend_by_ch = prev_30d.groupby('channel')['spend'].sum()
         for channel in self.historical_df['channel'].unique():
@@ -157,8 +201,17 @@ class RuleInsightEngine:
             "The ForecastIQ ensemble engine combines XGBoost, LightGBM, CatBoost, and Prophet to balance non-linear multi-channel "
             "interactions with seasonal time-series trends. Weighted averaging (Prophet 35%, XGBoost 25%, LightGBM 20%, CatBoost 20%) "
             "ensures that brief ad spend anomalies do not skew long-term executive planning. P10 and P90 intervals are mathematically "
-            "derived from historical residual variance, giving your team absolute certainty on worst-case cash flow floors."
+            "derived from historical residual variance to give your team a realistic planning range around the median forecast. "
+            "As with any statistical interval, actuals can still land outside P10-P90 in a given period, particularly around "
+            "unusual demand spikes or shifts not well represented in the training history — treat it as a calibrated planning "
+            "range, not a hard floor/ceiling guarantee."
         )
+        # BUG fix: this used to end with "giving your team absolute certainty on worst-case
+        # cash flow floors" - an overclaim that our own backtest scorecard directly contradicts
+        # (see output/backtest_summary.json interval_coverage, which is well below 100% in
+        # several Overall-Revenue segments/folds). A hard "certainty" claim sitting in a
+        # generated report is exactly the kind of thing that looks worse under scrutiny than a
+        # calibrated, honest description of what a P10-P90 interval actually promises.
 
         logger.info("Rule-based insight synthesis completed successfully.")
         return {
