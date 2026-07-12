@@ -12,7 +12,7 @@
 ## 🏆 Challenge & Executive Overview
 In modern eCommerce digital marketing, agencies and brands deploy capital across fragmented acquisition channels (Google Ads, Meta Ads, Microsoft Bing Ads). Allocating budgets without predicting marginal returns or evaluating ROAS constraints often leads to severe ad waste. 
 
-**ForecastIQ** is an elite, production-grade SaaS forecasting platform and automated command-line utility designed to solve this exact problem. Moving far beyond rudimentary CSV plotting, ForecastIQ incorporates a multi-model weighted statistical ensemble (Prophet, XGBoost, LightGBM, CatBoost) coupled with stochastic **Monte Carlo Risk Simulations**, an algorithmic **Optuna Budget Optimizer**, **TreeSHAP Causal Explanations**, and an **Executive AI Analyst** reasoning engine.
+**ForecastIQ** is a production-grade SaaS forecasting platform and automated command-line utility designed to solve this exact problem. Moving beyond single-model forecasting, ForecastIQ combines a multi-model weighted statistical ensemble (Prophet, XGBoost, LightGBM, CatBoost) with stochastic **Monte Carlo Risk Simulations**, an algorithmic **Optuna Budget Optimizer**, **TreeSHAP Causal Explanations**, and an **Executive AI Analyst** reasoning engine.
 
 The entire forecasting architecture functions **100% Offline** with no external network dependencies, fulfilling the strictest hackathon automation contracts while looking and behaving like an investor-ready SaaS startup.
 
@@ -21,7 +21,7 @@ The entire forecasting architecture functions **100% Offline** with no external 
 ## 🚀 Key Features & Hackathon Deliverables
 
 ### 1. Master Automated Failsafe Pipeline (`./run.sh`)
-Conforming perfectly to the **Hackathon Submission Guide** contract, our root `./run.sh` script runs entirely offline, accepts standard paths, dynamically parses cross-channel datasets, builds features, evaluates pickled models, and writes pristine predictions:
+Conforming to the **Hackathon Submission Guide** contract, our root `./run.sh` script runs entirely offline, accepts standard paths, dynamically parses cross-channel datasets, builds features, evaluates pickled models, and writes schema-conforming predictions:
 ```bash
 ./run.sh <DATA_DIR> <MODEL_PATH> <OUTPUT_PATH>
 ```
@@ -34,7 +34,7 @@ Conforming perfectly to the **Hackathon Submission Guide** contract, our root `.
 * Computes an overarching **Data Quality Score** (100.0 / 100 on a clean pull, deducted per detected issue) and outputs detailed audit logs.
 
 ### 3. Multi-Model Weighted Ensemble Forecasting
-Instead of relying on a single volatile model, ForecastIQ implements an elite weighted ensemble combining:
+Instead of relying on a single volatile model, ForecastIQ implements a weighted ensemble combining:
 1. **Facebook Prophet (35% Weight):** Best-in-class handling of yearly and weekly seasonal time-series trends.
 2. **XGBoost (25% Weight):** Evaluates deep non-linear multi-channel feature interactions.
 3. **LightGBM (20% Weight):** Lightning fast gradient boosting capturing recent performance lag indicators.
@@ -59,7 +59,7 @@ Generates multi-dimensional forecasts across 7 core enterprise operational scena
 5. `Q4 Holiday Demand Surge` | 6. `Black Friday / Cyber Week Blitz` | 7. `Aggressive Competitor Conquesting`
 
 ### 8. Production Enterprise PDF Reporting (`ReportLab`)
-Automated generation of a beautifully styled, multi-page professional PDF report (`Executive AI Forecast & Revenue Intelligence Report`) complete with running headers, numbered footers (`Page X of Y`), Optuna spend splits, and SHAP causal breakdowns.
+Automated generation of a multi-page professional PDF report (`Executive AI Forecast & Revenue Intelligence Report`) complete with running headers, numbered footers (`Page X of Y`), Optuna spend splits, and SHAP causal breakdowns.
 
 ---
 
@@ -78,7 +78,7 @@ Automated generation of a beautifully styled, multi-page professional PDF report
 │   └── model.pkl                # Committed trained multi-model ensemble artifact (Required)
 ├── output/                      # Pipeline outputs directory
 │   ├── predictions.csv          # Conforming master P10-P50-P90 predictions table
-│   └── executive_forecast_report.pdf # Beautifully formatted ReportLab PDF report
+│   └── executive_forecast_report.pdf # Formatted ReportLab PDF report
 ├── src/                         # Unified modular Core Python AI Intelligence package
 │   ├── utils.py                 # Failsafe logging, paths, configs
 │   ├── llm_provider.py          # AI Abstraction Layer (BaseLLM, Mock, Gemini)
@@ -92,18 +92,18 @@ Automated generation of a beautifully styled, multi-page professional PDF report
 │   ├── risk_engine.py           # Overarching Enterprise Risk Score (0-100) meter
 │   ├── rule_engine.py           # Rule-based offline executive insight briefing
 │   ├── chat_engine.py           # Contextual forecast chatbot routing layer
-│   ├── pdf_reporting.py         # Premium ReportLab professional PDF builder
+│   ├── pdf_reporting.py         # ReportLab PDF report builder
 │   ├── database.py              # SQLAlchemy persistent run & user models
 │   ├── generate_features.py     # CLI script 1: Ingests CSVs and builds features.parquet
 │   └── predict.py               # CLI script 2: Loads model.pkl and exports predictions.csv
 ├── backend/                     # Production FastAPI REST Application
-│   └── src/main.py              # Serves highly polished Next.js API endpoints
+│   └── src/main.py              # Serves the Next.js frontend's API endpoints
 └── frontend/                    # Modern Next.js 14 App Router App (@TailwindCSS / Recharts)
     ├── package.json
     ├── tailwind.config.ts
     └── src/app/
         ├── layout.tsx
-        └── page.tsx             # Master Single-Page 9-Tab SaaS Analytics Dashboard
+        └── page.tsx             # Master Single-Page 10-Tab SaaS Analytics Dashboard
 ```
 
 ---
@@ -114,9 +114,9 @@ Automated generation of a beautifully styled, multi-page professional PDF report
 Digital marketing revenue forecasting exhibits high auto-correlation, non-linear spend saturation, and weekly shopping variance. A pure linear regression fails to capture diminishing returns, while pure deep learning suffers from overfitting on short analytical windows.
 
 We selected an **Ensemble Architecture**:
-* **Prophet** provides an incredibly robust baseline that does not degrade during unexpected short ad outages.
+* **Prophet** provides a robust seasonal baseline that does not degrade during unexpected short ad outages.
 * **XGBoost & LightGBM** ingest our engineered marketing ratios (`CPC`, `CTR`, `Spend Share`, `Rolling STD`) to model non-linear auction elasticity.
-* **Weighted Averaging** provides optimal stability, ensuring our P50 projections remain exceptionally authentic.
+* **Weighted Averaging** provides stability, keeping P50 projections consistent across dimensions.
 
 ### 2. Data Preprocessing & Advanced Feature Engineering Suite
 1. **Monetary Normalization:** Google Ads `metrics_cost_micros` is divided by $10^6$. Meta Ads `conversion` is mapped to true sales revenue. Bing Ads `TimePeriod` is cast to standard ISO timelines.
@@ -136,7 +136,7 @@ $$\text{P90 (Upside)} = \text{P50} + 1.28 \cdot \text{Horizon STD}$$
 ### 5. AI Integration & Failsafe Abstraction Strategy
 Our `BaseLLMProvider` interface connects to **Google Gemini (2.5 Flash)** via `.env` API key. The abstraction layer is provider-agnostic by design (adding OpenAI/Anthropic support is a single new subclass), but Gemini is the only live integration currently implemented.
 
-**Absolute Failsafe Guarantee:** If no API key is present or if network calls timeout, the application seamlessly routes to an elite **MockLLMProvider**. This offline engine generates pristine, SaaS-grade executive summaries and causal chat insights incorporating exact live metrics with zero downtime.
+**Failsafe Guarantee:** If no API key is present or if network calls timeout, the application routes to a **MockLLMProvider**. This offline engine generates data-grounded executive summaries and causal chat insights from the same live metrics, with zero downtime.
 
 ---
 
@@ -184,7 +184,7 @@ The backtest also compares the ensemble against a naive trailing-30-day-average 
 ForecastIQ uses a conservative calibration layer: the ensemble forecast is blended with trailing 30/90-day observed revenue and spend levels, then its P10/P90 bands are widened with an empirical `1.45x` interval scale. This improves holdout stability and confidence-interval coverage while preserving ML-driven seasonality and dimension-specific signals.
 
 ### Option 2: Launch the SaaS FastAPI Backend & Next.js Frontend
-To experience the jaw-dropping production SaaS startup prototype:
+To run the full SaaS prototype (backend + frontend):
 
 **Step 1: Start FastAPI Backend**
 ```bash
@@ -209,7 +209,7 @@ npm run dev
 5. **Scenario Intelligence:** Click through your 7 core strategic enterprise scenarios.
 6. **Explainability Engine:** Decode your exact Shapley feature importance bar charts.
 7. **Executive Chatbot:** Type marketing questions to receive live contextual executive answers.
-8. **Export Reports:** Click the `Export Executive PDF` button to instantly download your pristine ReportLab PDF document.
+8. **Export Reports:** Click the `Export Executive PDF` button to instantly download the ReportLab PDF document.
 
 ---
 *Built with analytical rigor by Pavan Kumar S & Rohindth, Dayananda Sagar University — NetElixir AIgnition 3.0.*

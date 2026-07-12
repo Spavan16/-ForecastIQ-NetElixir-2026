@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# NetElixir AIgnition 2026 Hackathon Challenge Submission
+# NetElixir AIgnition 3.0 Hackathon Challenge Submission
 # Project: ForecastIQ — Marketing Revenue Forecasting & Budget Optimization Pipeline
 # Team: Team ForecastIQ | Pavan Kumar S (ENG24AD0047), Rohindth | Dayananda Sagar University, Bengaluru
 # Contract: ./run.sh <DATA_DIR> <MODEL_PATH> <OUTPUT_PATH>
