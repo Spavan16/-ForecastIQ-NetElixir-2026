@@ -650,7 +650,7 @@ class EnterprisePDFReport:
         # consistent with the BUG 23/24 fix already applied to the live dashboard.
         story.append(KeepTogether([
             HRFlowable(width="100%", thickness=1, color=self.c_border, spaceBefore=10, spaceAfter=10),
-            Paragraph("<b>ForecastIQ</b> \u2014 built for the NetElixir AIgnition 2026 Hackathon Challenge.", self.styles['BodyCustom']),
+            Paragraph("<b>ForecastIQ</b> \u2014 built for the NetElixir AIgnition 3.0 Hackathon Challenge.", self.styles['BodyCustom']),
             Paragraph("<i>Engineered by Pavan &amp; Rohindth, Dayananda Sagar University.</i>", self.styles['FootnoteText'])
         ]))
 

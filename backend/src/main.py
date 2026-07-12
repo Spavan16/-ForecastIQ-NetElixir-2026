@@ -33,7 +33,12 @@ from src.utils import get_logger
 
 app = FastAPI(
     title="ForecastIQ API",
-    description="FastAPI backend for the ForecastIQ revenue forecasting & budget optimization platform, built for NetElixir AIgnition 2026.",
+    # BUG fix: this said "AIgnition 2026" -- same naming slip as the README/PDF header fixes,
+    # just missed there because a directory-wide search for "AIgnition 2026" happened to not
+    # recurse into backend/ that time. The official name (per the Project Brief T&Cs) is
+    # "AIgnition 3.0". This string is visible directly to anyone opening the FastAPI Swagger
+    # docs at /docs, which is exactly the kind of place a technically-curious judge looks.
+    description="FastAPI backend for the ForecastIQ revenue forecasting & budget optimization platform, built for NetElixir AIgnition 3.0.",
     version="1.0.0"
 )
 

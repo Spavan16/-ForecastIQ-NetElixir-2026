@@ -3,7 +3,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "ForecastIQ | AI-Powered Revenue Intelligence Platform",
-  description: "From Marketing Spend to Revenue Certainty — Built for NetElixir AIgnition 2026",
+  // BUG fix: "AIgnition 2026" -> "AIgnition 3.0" (official competition name per the Project
+  // Brief T&Cs). This is the page's <meta name="description"> tag -- visible in browser tab
+  // previews, page source, and any social/link-preview card if the live demo URL is shared.
+  description: "From Marketing Spend to Revenue Certainty — Built for NetElixir AIgnition 3.0",
 };
 
 export default function RootLayout({
