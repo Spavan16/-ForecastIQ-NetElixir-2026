@@ -84,13 +84,10 @@ class BudgetOptimizer:
 
             self.channel_params[ch] = {"alpha": alpha, "beta": beta, "base_roas": overall_roas, "fit_cv": fit_cv}
 
-        # BUG fix (bug-hunt sweep): this used to force-add exactly ["Google Ads","Meta Ads",
-        # "Bing Ads"] with fabricated defaults, AND that hardcoded list was the only channel
-        # set every method below (simulate_budget_change, optimize_allocation) ever iterated
-        # over — so a real channel present in historical_df (fitted correctly just above via
-        # the data-driven groupby) got silently discarded downstream the moment held-out/mock
-        # grading data introduced a 4th channel. self.channels is now the single canonical,
-        # data-derived list every method in this class iterates over.
+        # self.channels is the single canonical, data-derived channel list — every method in
+        # this class (simulate_budget_change, optimize_allocation) iterates over this rather
+        # than any separate hardcoded list, so a channel actually present in historical_df is
+        # never silently dropped downstream even if the data introduces a 4th channel.
         self.channels = sorted(self.channel_params.keys())
         if not self.channels:
             # Genuinely empty historical data: fall back to the three channels this product

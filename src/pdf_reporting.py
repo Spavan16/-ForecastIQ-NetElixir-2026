@@ -642,12 +642,7 @@ class EnterprisePDFReport:
         story.append(t_risk)
         story.append(Spacer(1, 25))
 
-        # Sign-off block
-        # BUG 13 fix: previously hardcoded a fabricated credential claim ("Team Principal Data
-        # Scientist, Staff ML Engineer, Senior Backend, Senior Frontend, and AWS Solutions
-        # Architect") into every downloaded PDF — an active false statement in a user-facing
-        # deliverable, not a placeholder. Replaced with an honest student-team sign-off,
-        # consistent with the BUG 23/24 fix already applied to the live dashboard.
+        # Sign-off block: honest student-team credit, consistent with the dashboard's sign-off.
         story.append(KeepTogether([
             HRFlowable(width="100%", thickness=1, color=self.c_border, spaceBefore=10, spaceAfter=10),
             Paragraph("<b>ForecastIQ</b> \u2014 built for the NetElixir AIgnition 3.0 Hackathon Challenge.", self.styles['BodyCustom']),

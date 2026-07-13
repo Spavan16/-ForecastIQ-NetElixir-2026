@@ -459,10 +459,9 @@ class ValidationEngine:
         unified_df = unified_df.sort_values(by=['date', 'channel']).reset_index(drop=True)
 
         # Calculate final Data Quality Score (Capped between 10.0 and 100.0).
-        # BUG fix (P1): this previously hard-overrode a clean (zero-penalty) run to a
-        # fabricated 98.2, discarding the real computed 100.0. Same failure class as the
-        # original hardcoded-frontend-score bug (BUG_03), just relocated server-side. The
-        # score must be a pure function of quality_score - points_deducted, no exceptions.
+        # Must be a pure function of quality_score - points_deducted, with no hardcoded
+        # override — a clean, zero-penalty ingestion run should be able to report the true
+        # 100.0, not a constant.
         final_score = max(10.0, min(100.0, self.quality_score - self.points_deducted))
 
         validation_summary = {

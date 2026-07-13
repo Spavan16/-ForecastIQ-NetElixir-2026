@@ -36,13 +36,10 @@ class MockLLMProvider(BaseLLMProvider):
     template-based executive summaries when no LLM API key is configured.
     """
     def generate_insight(self, prompt: str, context: Optional[Dict[str, Any]] = None) -> str:
-        # BUG fix (bug-hunt sweep): this used to hardcode specific channel-level claims
-        # ("Google Ads provides high revenue stability, but Meta Ads shows elevated CPC
-        # volatility"...) regardless of what `context` actually contains - context here only
-        # ever carries revenue_90d/roas_90d in this codebase, no per-channel breakdown, so
-        # those claims were never derived from anything. Kept the two real numbers this
-        # method IS given, removed the fabricated channel-specific claims, and pointed to the
-        # tabs that actually compute them instead of asserting a guess.
+        # Offline template responses stay generic on anything not actually passed into
+        # `context` (only revenue_90d/roas_90d are guaranteed here — no per-channel
+        # breakdown), pointing to the tabs that compute channel-specific numbers instead of
+        # asserting an unsupported claim.
         total_rev = "$14.6M"
         overall_roas = "4.25x"
         if context and "revenue_90d" in context:
