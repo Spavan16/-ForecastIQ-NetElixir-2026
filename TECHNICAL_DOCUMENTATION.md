@@ -13,7 +13,7 @@ ForecastIQ uses a **weighted ensemble of four models** to produce probabilistic 
 | LightGBM | 20% | Gradient boosting with fast training on high-cardinality campaign features |
 | CatBoost | 20% | Categorical feature handling (channel, campaign type, season) |
 
-The weighted average of all four model predictions forms the **P50 (expected) forecast**. Probabilistic ranges (P10/P90) are derived from historical residual standard deviation scaled by planning horizon — wider intervals at 90 days reflect genuine macro uncertainty, not arbitrary padding.
+The weighted average of all four model predictions forms the raw ensemble signal. This raw signal is then blended with a **recency-anchor baseline** — the trailing 30-day daily average (90% weight) plus trailing 90-day average (10% weight) — at a **25% raw-ensemble / 75% recency-anchor** split (`model_blend_weight` in `models.py`) before being projected forward as the final P50 forecast. This blending step exists to stabilize the ensemble against short-horizon noise, but it also means the recency anchor's own accuracy dominates the final number — relevant context for Section 5's backtest discussion below, where this weighting is identified as a driver of the Revenue-vs-naive-baseline gap. Probabilistic ranges (P10/P90) are derived from historical residual standard deviation scaled by planning horizon — wider intervals at 90 days reflect genuine macro uncertainty, not arbitrary padding.
 
 ### Monte Carlo Simulation
 
