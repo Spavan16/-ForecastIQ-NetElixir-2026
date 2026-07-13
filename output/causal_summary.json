@@ -1,0 +1,24 @@
+{
+  "generated_by": "MockLLMProvider (offline fallback)",
+  "forecast_period": "90_days",
+  "revenue_p50": 968714.79,
+  "roas_p50": 4.94,
+  "channel_breakdown": [
+    {
+      "channel": "Google Ads",
+      "revenue_p50_90d": 867664.47,
+      "share_pct": 85.9
+    },
+    {
+      "channel": "Meta Ads",
+      "revenue_p50_90d": 124441.59,
+      "share_pct": 12.3
+    },
+    {
+      "channel": "Bing Ads",
+      "revenue_p50_90d": 17813.81,
+      "share_pct": 1.8
+    }
+  ],
+  "causal_summary": "[Mock Insight Mode Enabled] Causal Inference Summary: historical revenue growth ($968,715 projected over 90 days) is concentrated in your highest-volume channels - see the Explainability tab for the exact SHAP-ranked channel and campaign contributions. Blended ROAS (4.94x) is most sensitive to whichever channel is showing the highest CPM/CPC volatility right now."
+}
