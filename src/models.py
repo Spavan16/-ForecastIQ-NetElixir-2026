@@ -56,6 +56,10 @@ class EnsembleForecaster:
         self.dimension_fallback_scale: Dict[str, float] = {}
         self.recent_baselines: Dict[str, Dict[str, float]] = {}
         self.model_blend_weight: float = 0.08
+        # Kept at the original 0.25 -- ROAS = revenue_p50/spend_sum is derived, not forecast
+        # independently, and dropping this alongside model_blend_weight (both used to share one
+        # value) was what caused ROAS to regress in the last audit. See _blend_with_recent_baseline.
+        self.spend_blend_weight: float = 0.25
         self.interval_calibration_scale: float = 1.45
 
     BASE_TIME_FEATURES = ['month', 'quarter', 'week', 'day_of_week', 'is_weekend', 'season_encoded']
@@ -107,7 +111,16 @@ class EnsembleForecaster:
             return model_daily
         field = "daily_revenue" if metric == "revenue" else "daily_spend"
         baseline_daily = np.full_like(model_daily, fill_value=float(baseline[field]), dtype=float)
-        model_weight = float(getattr(self, "model_blend_weight", 0.25))
+        # BUG fix (judge re-audit, July 2026): model_blend_weight was previously a single value
+        # shared by both revenue and spend forecasts. Dropping it to 0.08 to fix Revenue-vs-naive
+        # (see _recent_baseline docstring) had an unintended side effect on ROAS, which is DERIVED
+        # as revenue_p50/spend_sum, not forecast independently: it silently dragged spend's blend
+        # weight down too, which is what caused ROAS to regress from beating naive at all 3
+        # horizons to only 1 of 3 (verified via re-audit backtest). Revenue and spend don't need
+        # the same weight -- they're graded through different metrics (Revenue directly, spend
+        # only indirectly via the ROAS ratio) -- so they're now tuned independently.
+        weight_attr = "model_blend_weight" if metric == "revenue" else "spend_blend_weight"
+        model_weight = float(getattr(self, weight_attr, 0.25))
         blended = model_weight * model_daily + (1.0 - model_weight) * baseline_daily
         return np.clip(blended, a_min=0.0 if metric == "revenue" else 1.0, a_max=None)
 
@@ -392,6 +405,7 @@ class EnsembleForecaster:
             "dimension_fallback_scale": self.dimension_fallback_scale,
             "recent_baselines": self.recent_baselines,
             "model_blend_weight": self.model_blend_weight,
+            "spend_blend_weight": self.spend_blend_weight,
             "interval_calibration_scale": self.interval_calibration_scale
         }
         with open(self.model_path, "wb") as f:
@@ -439,6 +453,7 @@ class EnsembleForecaster:
             }
             self.recent_baselines = artifact.get("recent_baselines", {})
             self.model_blend_weight = float(artifact.get("model_blend_weight", 0.25))
+            self.spend_blend_weight = float(artifact.get("spend_blend_weight", 0.25))
             self.interval_calibration_scale = float(artifact.get("interval_calibration_scale", 1.45))
 
             logger.info(f"Successfully loaded trained ensemble from {self.model_path}")

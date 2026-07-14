@@ -78,7 +78,31 @@ def test_fails_loudly_on_missing_model():
     print("PASS: missing model.pkl fails loudly, no bad output written.")
 
 
+def test_fails_loudly_on_corrupt_model():
+    # Judge audit (High Issue #5, follow-up): the missing-path case above doesn't exercise a
+    # model.pkl that EXISTS but fails to unpickle -- a version mismatch between the environment
+    # it was pickled in and the grading environment, which the Submission Guide calls "the single
+    # most common reason submissions fail." This writes garbage bytes to a real file at the
+    # expected path so load_models()'s pickle.load() itself throws, not just a missing-file check.
+    corrupt_path = ROOT / "pickle" / "corrupt_test.pkl"
+    corrupt_path.write_bytes(b"not a real pickle file")
+    try:
+        result = subprocess.run(
+            [sys.executable, "src/predict.py", "--features", "features.pkl",
+             "--model", str(corrupt_path), "--output", "./output/should_not_exist2.csv"],
+            cwd=ROOT, env=RUN_ENV,
+        )
+        assert result.returncode != 0, "predict.py should exit non-zero on a corrupt model pickle"
+        assert not (ROOT / "output" / "should_not_exist2.csv").exists(), (
+            "predict.py silently produced output despite a corrupt/unloadable model -- contract violation"
+        )
+        print("PASS: corrupt model.pkl fails loudly, no bad output written.")
+    finally:
+        corrupt_path.unlink(missing_ok=True)
+
+
 if __name__ == "__main__":
     test_pipeline_runs_and_produces_valid_output()
     test_fails_loudly_on_missing_model()
+    test_fails_loudly_on_corrupt_model()
     print("\nAll smoke tests passed.")
