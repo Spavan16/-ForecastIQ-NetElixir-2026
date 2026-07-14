@@ -60,7 +60,7 @@ class EnsembleForecaster:
         # independently, and dropping this alongside model_blend_weight (both used to share one
         # value) was what caused ROAS to regress in the last audit. See _blend_with_recent_baseline.
         self.spend_blend_weight: float = 0.25
-        self.interval_calibration_scale: float = 1.45
+        self.interval_calibration_scale: float = 3.0
 
     BASE_TIME_FEATURES = ['month', 'quarter', 'week', 'day_of_week', 'is_weekend', 'season_encoded']
     _NON_FEATURE_COLS = {'date', 'revenue', 'spend', 'clicks', 'impressions', 'conversions', 'season'}
@@ -517,7 +517,7 @@ class EnsembleForecaster:
             self.recent_baselines = artifact.get("recent_baselines", {})
             self.model_blend_weight = float(artifact.get("model_blend_weight", 0.25))
             self.spend_blend_weight = float(artifact.get("spend_blend_weight", 0.25))
-            self.interval_calibration_scale = float(artifact.get("interval_calibration_scale", 1.45))
+            self.interval_calibration_scale = float(artifact.get("interval_calibration_scale", 3.0))
 
             logger.info(f"Successfully loaded trained ensemble from {self.model_path}")
             return True
@@ -527,7 +527,7 @@ class EnsembleForecaster:
 
     def _aggregate_probabilistic_sums(self, daily_preds: np.ndarray, std_daily: float, periods: int) -> Tuple[float, float, float]:
         p50_sum = float(np.sum(daily_preds))
-        horizon_std = std_daily * (periods ** 0.75) * float(getattr(self, "interval_calibration_scale", 1.45))
+        horizon_std = std_daily * (periods ** 0.75) * float(getattr(self, "interval_calibration_scale", 3.0))
         p10_raw = p50_sum - 1.28 * horizon_std
         p90_sum = float(p50_sum + 1.28 * horizon_std)
         # P10 floor: max of 5% of P50 to avoid uninformative zero lower bounds
