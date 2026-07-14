@@ -12,9 +12,9 @@
 ## 🏆 Challenge & Executive Overview
 In modern eCommerce digital marketing, agencies and brands deploy capital across fragmented acquisition channels (Google Ads, Meta Ads, Microsoft Bing Ads). Allocating budgets without predicting marginal returns or evaluating ROAS constraints often leads to severe ad waste. 
 
-**ForecastIQ** is a production-grade SaaS forecasting platform and automated command-line utility designed to solve this exact problem. Moving beyond single-model forecasting, ForecastIQ combines a multi-model weighted statistical ensemble (Prophet, XGBoost, LightGBM, CatBoost) with stochastic **Monte Carlo Risk Simulations**, an algorithmic **Optuna Budget Optimizer**, **TreeSHAP Causal Explanations**, and an **Executive AI Analyst** reasoning engine.
+**ForecastIQ** is a technically sound, operationally realistic forecasting utility built for this exact problem, with an automated command-line pipeline as its graded deliverable. Moving beyond single-model forecasting, ForecastIQ combines a multi-model weighted statistical ensemble (Prophet, XGBoost, LightGBM, CatBoost) with stochastic **Monte Carlo Risk Simulations**, an algorithmic **Optuna Budget Optimizer**, **TreeSHAP Causal Explanations**, and an **Executive AI Analyst** reasoning engine. A FastAPI/Next.js dashboard (Option 2 below) is included as an optional, illustrative frontend for the demo walkthrough — it is not the graded artifact and isn't a claim of a production SaaS product; the CLI pipeline (`./run.sh`) is.
 
-The entire forecasting architecture functions **100% Offline** with no external network dependencies, fulfilling the strictest hackathon automation contracts while looking and behaving like an investor-ready SaaS startup.
+The entire forecasting architecture functions **100% Offline** with no external network dependencies, fulfilling the strictest hackathon automation contracts.
 
 ---
 
