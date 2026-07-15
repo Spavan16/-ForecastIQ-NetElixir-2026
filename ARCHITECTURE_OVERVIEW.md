@@ -103,7 +103,7 @@ run.sh
 
 The pipeline is fully offline and requires no network access. All model weights are pre-trained and committed to the repository under `pickle/model.pkl`.
 
-Forecast generation includes a recent-reality calibration layer: learned ensemble outputs are blended with trailing 30/90-day observed revenue and spend baselines. P10/P90 bands then use an empirical `1.45x` interval scale to improve holdout coverage. This keeps forecasts anchored to the latest business level while preserving seasonality, nonlinear model behavior, and dimension-specific forecasts.
+Forecast generation includes a recent-reality calibration layer: learned ensemble outputs are blended with trailing 30/90-day observed revenue and spend baselines. P10/P90 bands then use an empirical `3.0x` interval scale to improve holdout coverage. This keeps forecasts anchored to the latest business level while preserving seasonality, nonlinear model behavior, and dimension-specific forecasts.
 
 ---
 
