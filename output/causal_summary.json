@@ -20,5 +20,47 @@
       "share_pct": 1.8
     }
   ],
-  "causal_summary": "[Mock Insight Mode Enabled] Causal Inference Summary: historical revenue growth ($963,809 projected over 90 days) is concentrated in Google Ads, which accounts for 85.7% of forecast channel revenue at 5.66x ROAS - see the Explainability tab for the full SHAP-ranked channel and campaign contributions. Blended ROAS (5.41x) is most sensitive to Meta Ads, which carries the widest 90-day ROAS forecast interval of the active channels (448% of its own P50 value) - a swing there moves the blended number the most."
+  "campaign_type_breakdown": [
+    {
+      "campaign_type": "PERFORMANCE_MAX",
+      "revenue_p50_90d": 349632.26,
+      "share_pct": 35.3
+    },
+    {
+      "campaign_type": "SHOPPING",
+      "revenue_p50_90d": 270491.05,
+      "share_pct": 27.3
+    },
+    {
+      "campaign_type": "SEARCH",
+      "revenue_p50_90d": 239631.23,
+      "share_pct": 24.2
+    },
+    {
+      "campaign_type": "SOCIAL",
+      "revenue_p50_90d": 125966.12,
+      "share_pct": 12.7
+    },
+    {
+      "campaign_type": "DEMAND_GEN",
+      "revenue_p50_90d": 3461.93,
+      "share_pct": 0.3
+    },
+    {
+      "campaign_type": "VIDEO",
+      "revenue_p50_90d": 5.47,
+      "share_pct": 0.0
+    },
+    {
+      "campaign_type": "DISPLAY",
+      "revenue_p50_90d": 0.0,
+      "share_pct": 0.0
+    },
+    {
+      "campaign_type": "AUDIENCE",
+      "revenue_p50_90d": 0.0,
+      "share_pct": 0.0
+    }
+  ],
+  "causal_summary": "[Mock Insight Mode Enabled] Causal Inference Summary: historical revenue growth ($963,809 projected over 90 days) is concentrated in Google Ads, which accounts for 85.7% of forecast channel revenue at 5.66x ROAS - see the Explainability tab for the full SHAP-ranked channel and campaign contributions. Blended ROAS (5.41x) is most sensitive to Meta Ads, which carries the widest 90-day ROAS forecast interval of the active channels (448% of its own P50 value) - a swing there moves the blended number the most. Within that mix, PERFORMANCE_MAX is the largest single campaign-type driver, accounting for 35.3% of forecast revenue at 3.98x ROAS - the Explainability tab's SHAP breakdown traces exactly how much of Google Ads's share above is carried by this campaign type versus the rest of its mix."
 }

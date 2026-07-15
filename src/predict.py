@@ -171,12 +171,51 @@ def main():
                 "interval_width_pct": round(interval_width_pct, 1),
             }
 
+        # Second synthesis layer beyond channel: which campaign type within the portfolio is
+        # actually the largest revenue driver and at what ROAS. Same real-data pattern as
+        # channel_context above -- no new assumptions, just one more dimension already computed
+        # by produce_full_predictions_table() that wasn't being surfaced in the causal text.
+        ctype_rows = master_preds_df[
+            (master_preds_df["dimension_type"] == "CampaignType")
+            & (master_preds_df["forecast_period"] == "90_days")
+            & (master_preds_df["metric"] == "Revenue")
+        ].sort_values("p50", ascending=False)
+        ctype_roas_rows = master_preds_df[
+            (master_preds_df["dimension_type"] == "CampaignType")
+            & (master_preds_df["forecast_period"] == "90_days")
+            & (master_preds_df["metric"] == "ROAS")
+        ]
+        total_ctype_rev = float(ctype_rows["p50"].sum()) or 1.0
+        campaign_type_context: Dict[str, Dict[str, float]] = {}
+        for _, row in ctype_rows.iterrows():
+            ct = row["dimension_value"]
+            roas_match = ctype_roas_rows[ctype_roas_rows["dimension_value"] == ct]
+            campaign_type_context[ct] = {
+                "revenue": float(row["p50"]),
+                "share_pct": round(float(row["p50"]) / total_ctype_rev * 100.0, 1),
+                "roas": float(roas_match["p50"].iloc[0]) if not roas_match.empty else 0.0,
+            }
+
         summary_provider = MockLLMProvider()
         causal_text = summary_provider.generate_insight(
             "Generate a causal summary explaining the drivers behind the 90-day revenue and "
             "ROAS forecast across channels.",
-            context={"revenue_90d": revenue_90d, "roas_90d": roas_90d, "channel_breakdown": channel_context},
+            context={
+                "revenue_90d": revenue_90d,
+                "roas_90d": roas_90d,
+                "channel_breakdown": channel_context,
+                "campaign_type_breakdown": campaign_type_context,
+            },
         )
+
+        campaign_type_breakdown = [
+            {
+                "campaign_type": ct,
+                "revenue_p50_90d": round(v["revenue"], 2),
+                "share_pct": v["share_pct"],
+            }
+            for ct, v in campaign_type_context.items()
+        ]
 
         causal_payload = {
             "generated_by": summary_provider.get_provider_name(),
@@ -184,6 +223,7 @@ def main():
             "revenue_p50": round(revenue_90d, 2),
             "roas_p50": round(roas_90d, 4),
             "channel_breakdown": channel_breakdown,
+            "campaign_type_breakdown": campaign_type_breakdown,
             "causal_summary": causal_text,
         }
         causal_path = out_path.parent / "causal_summary.json"

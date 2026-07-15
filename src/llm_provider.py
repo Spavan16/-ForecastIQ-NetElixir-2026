@@ -72,12 +72,13 @@ class MockLLMProvider(BaseLLMProvider):
             # genuinely absent (e.g. a caller with just revenue_90d/roas_90d and no channel
             # detail), so this still degrades safely rather than crashing.
             channel_ctx: Dict[str, Any] = (context or {}).get("channel_breakdown", {}) or {}
+            ctype_ctx: Dict[str, Any] = (context or {}).get("campaign_type_breakdown", {}) or {}
             if channel_ctx:
                 top_ch, top_row = max(channel_ctx.items(), key=lambda kv: kv[1].get("revenue", 0.0))
                 volatile_ch, volatile_row = max(
                     channel_ctx.items(), key=lambda kv: kv[1].get("interval_width_pct", 0.0)
                 )
-                return (
+                summary = (
                     f"[Mock Insight Mode Enabled] Causal Inference Summary: historical revenue growth "
                     f"({total_rev} projected over 90 days) is concentrated in {top_ch}, which accounts "
                     f"for {top_row.get('share_pct', 0.0):.1f}% of forecast channel revenue at "
@@ -87,6 +88,20 @@ class MockLLMProvider(BaseLLMProvider):
                     f"interval of the active channels ({volatile_row.get('interval_width_pct', 0.0):.0f}% "
                     f"of its own P50 value) - a swing there moves the blended number the most."
                 )
+                # Second synthesis layer: within that revenue mix, which campaign type is the
+                # actual mechanism driving it. Grounded in the same real per-dimension numbers
+                # already computed by produce_full_predictions_table(), not a new assumption.
+                if ctype_ctx:
+                    top_ctype, top_ctype_row = max(ctype_ctx.items(), key=lambda kv: kv[1].get("revenue", 0.0))
+                    summary += (
+                        f" Within that mix, {top_ctype} is the largest single campaign-type driver, "
+                        f"accounting for {top_ctype_row.get('share_pct', 0.0):.1f}% of forecast revenue "
+                        f"at {top_ctype_row.get('roas', 0.0):.2f}x ROAS - the Explainability tab's "
+                        f"SHAP breakdown traces exactly how much of {top_ch}'s share above is carried "
+                        f"by this campaign type versus the rest of its mix."
+                    )
+                return summary
+
             return (
                 f"[Mock Insight Mode Enabled] Causal Inference Summary: historical revenue growth "
                 f"({total_rev} projected over 90 days) is concentrated in your highest-volume "
