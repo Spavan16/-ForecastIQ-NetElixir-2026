@@ -137,6 +137,21 @@ class EnsembleForecaster:
         # compared a full 30-day window against the 30 days before it (60 days total), a much
         # smoother comparison. Requires 60 days of history; falls back to flat (trend=0) below
         # that, same as before this fix existed.
+        # ATTEMPTED FIX (July 2026, round 5 -- REVERTED, kept here as a record so this exact
+        # experiment doesn't get retried blind): analytically, summing trend_per_day * i * PHI^i
+        # over i=1..N shows the damped trend's cumulative weight per horizon-day is highest at
+        # the 30-day window (avg weight 3.46/day) vs 90-day (1.59/day) -- most of the trend
+        # term's influence lands inside the first 30 days. The hypothesis was that a wider
+        # 45-vs-45-day trend-estimation window (vs the 30-vs-30 below) would reduce noise in the
+        # trend input itself and specifically help 30-day. Tested directly against the live
+        # 3-fold backtest: it made EVERY horizon worse, not just failed to help 30-day --
+        # Revenue-vs-naive went from (-5.1%, +5.5%, +6.9%) at 30/60/90 days to (-14.8%, -12.0%,
+        # -26.1%). Root cause: fold 1 has only 119 days of history, so a 45-vs-45 window
+        # consumes nearly all of it, diluting genuinely recent momentum with much older, less
+        # relevant periods -- measuring a different, stale trend rather than a less noisy one.
+        # Reverted to the original 30-vs-30 window below. Documented instead of silently
+        # discarded, per this project's own stated practice of verifying every fix against the
+        # live backtest rather than reasoning about it in isolation.
         revenue_trend_per_day = 0.0
         spend_trend_per_day = 0.0
         if len(daily_df) >= 60:
