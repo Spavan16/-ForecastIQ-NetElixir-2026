@@ -17,10 +17,10 @@
     "interval_coverage": 98.5075
   },
   "campaign_level": {
-    "revenue_wape": 70.8425,
-    "revenue_smape": 71.7746,
-    "roas_smape": 57.8101,
-    "interval_coverage": 86.6667,
+    "revenue_wape": 56.2513,
+    "revenue_smape": 63.0691,
+    "roas_smape": 48.5525,
+    "interval_coverage": 88.0,
     "rows_scored": 150,
     "note": "Individual named campaigns inherit substantially higher variance than portfolio- or channel-level forecasts, since campaign lifecycles (e.g. wind-down, budget exhaustion) aren't modeled without an explicit end-date signal."
   },
@@ -30,11 +30,11 @@
       "forecast_period": "30_days",
       "dimension_type": "Campaign",
       "rows": 25,
-      "mae": 6.1394,
-      "rmse": 8.9404,
-      "mape": 45.5741,
-      "smape": 65.8071,
-      "wape": 65.3048,
+      "mae": 7.0039,
+      "rmse": 13.7582,
+      "mape": 36.2281,
+      "smape": 53.6704,
+      "wape": 74.5008,
       "interval_coverage": 88.0
     },
     {
@@ -78,11 +78,11 @@
       "forecast_period": "60_days",
       "dimension_type": "Campaign",
       "rows": 25,
-      "mae": 4.0821,
-      "rmse": 5.8232,
-      "mape": 35.5649,
-      "smape": 55.2032,
-      "wape": 50.8882,
+      "mae": 4.3928,
+      "rmse": 8.2151,
+      "mape": 29.6555,
+      "smape": 45.7457,
+      "wape": 54.7606,
       "interval_coverage": 88.0
     },
     {
@@ -126,11 +126,11 @@
       "forecast_period": "90_days",
       "dimension_type": "Campaign",
       "rows": 25,
-      "mae": 3.606,
-      "rmse": 5.2807,
-      "mape": 34.4446,
-      "smape": 52.4201,
-      "wape": 48.5958,
+      "mae": 4.4642,
+      "rmse": 8.2848,
+      "mape": 31.3494,
+      "smape": 46.2414,
+      "wape": 60.1618,
       "interval_coverage": 88.0
     },
     {
@@ -174,11 +174,11 @@
       "forecast_period": "30_days",
       "dimension_type": "Campaign",
       "rows": 25,
-      "mae": 10419.1155,
-      "rmse": 15820.4584,
-      "mape": 57.5008,
-      "smape": 64.9003,
-      "wape": 58.8384,
+      "mae": 8412.2168,
+      "rmse": 12372.8048,
+      "mape": 54.85,
+      "smape": 55.5886,
+      "wape": 47.5051,
       "interval_coverage": 92.0
     },
     {
@@ -222,12 +222,12 @@
       "forecast_period": "60_days",
       "dimension_type": "Campaign",
       "rows": 25,
-      "mae": 22540.3531,
-      "rmse": 40358.8164,
-      "mape": 101.1335,
-      "smape": 71.9994,
-      "wape": 67.0233,
-      "interval_coverage": 84.0
+      "mae": 18559.8992,
+      "rmse": 31124.1339,
+      "mape": 99.5249,
+      "smape": 63.626,
+      "wape": 55.1875,
+      "interval_coverage": 92.0
     },
     {
       "metric": "Revenue",
@@ -270,11 +270,11 @@
       "forecast_period": "90_days",
       "dimension_type": "Campaign",
       "rows": 25,
-      "mae": 36081.0284,
-      "rmse": 62655.0401,
-      "mape": 148.577,
-      "smape": 78.424,
-      "wape": 78.2369,
+      "mae": 27848.3686,
+      "rmse": 47384.1282,
+      "mape": 148.2347,
+      "smape": 69.9928,
+      "wape": 60.3855,
       "interval_coverage": 80.0
     },
     {
