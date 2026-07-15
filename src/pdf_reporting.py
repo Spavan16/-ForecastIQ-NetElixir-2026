@@ -437,10 +437,42 @@ class EnterprisePDFReport:
             story.append(t_bt)
             story.append(Spacer(1, 12))
 
+            # BUG fix (judge audit): this summary sentence was a hardcoded string that silently
+            # went stale whenever the underlying backtest numbers changed (e.g. after blend-weight
+            # or interval-scale tuning), even though the table above it was already computed live
+            # from backtest_summary.json. Building it from the same baseline_rows data the table
+            # uses keeps the two in sync automatically going forward.
+            def _horizon_label(period: str) -> str:
+                return period.replace("_days", "-day")
+
+            def _summarize_metric(rows: list, label: str) -> str:
+                beats = [r for r in rows if r['ensemble_beats_naive_baseline']]
+                trails = [r for r in rows if not r['ensemble_beats_naive_baseline']]
+                if beats and not trails:
+                    horizons = ", ".join(_horizon_label(r['forecast_period']) for r in rows)
+                    return f"{label} forecasts beat the naive baseline at all three horizons ({horizons})."
+                if trails and not beats:
+                    horizons = ", ".join(
+                        f"{_horizon_label(r['forecast_period'])} ({r['mape_improvement_pct']:+.1f}%)" for r in rows
+                    )
+                    return f"{label} forecasts trail the naive baseline across all three horizons in this backtest ({horizons})."
+                beat_str = ", ".join(
+                    f"{_horizon_label(r['forecast_period'])} ({r['mape_improvement_pct']:+.1f}%)" for r in beats
+                )
+                trail_str = ", ".join(
+                    f"{_horizon_label(r['forecast_period'])} ({r['mape_improvement_pct']:+.1f}%)" for r in trails
+                )
+                return f"{label} forecasts beat the naive baseline at {beat_str} and trail it at {trail_str}."
+
+            _roas_rows = [b for b in baseline_rows if b['metric'] == 'ROAS']
+            _revenue_rows = [b for b in baseline_rows if b['metric'] == 'Revenue']
+            _backtest_summary_line = (
+                _summarize_metric(_roas_rows, "ROAS") + " " + _summarize_metric(_revenue_rows, "Revenue")
+            )
+
             story.append(Paragraph(
-                "ROAS forecasts beat the naive baseline at the 60-day horizon (+4.5% MAPE improvement) and trail it "
-                "narrowly at 30 and 90 days (-1.1% and -7.1%). Revenue forecasts trail the naive baseline across all "
-                "three horizons in this backtest. We're disclosing this rather than omitting it. Tracing "
+                _backtest_summary_line + " "
+                "We're disclosing this rather than omitting it. Tracing "
                 "the gap by decomposing the forecast into its components found that the model's own recency-anchoring "
                 "step \u2014 which blends the raw ensemble output with a trailing revenue baseline to stabilize it \u2014 was "
                 "weighting a stale 90-day average too heavily relative to the more recent 30-day level the naive "
