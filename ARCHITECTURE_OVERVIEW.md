@@ -17,14 +17,15 @@ data/ (CSV inputs)
     │    pickle/model.pkl   ← pre-trained, committed to repo
     │
     ▼
-[MonteCarloSimulator]       ← 10,000-iteration portfolio simulation → P10/P50/P90
-    │
-    ▼
-output/predictions.csv      ← scored deliverable
-    │
+output/predictions.csv      ← scored deliverable (P10/P50/P90 from residual-based
+    │                          interval scaling -- see Forecasting Pipeline below,
+    │                          NOT from Monte Carlo; that's a dashboard-only feature)
     ▼
 [FastAPI Backend]           ← 17 REST endpoints serving live analytics
-    │
+    │         │
+    │    [MonteCarloSimulator]  ← 10,000-iteration portfolio simulation, powers
+    │                              only the dashboard's /api/simulations view --
+    │                              not part of the run.sh / predictions.csv path
     ▼
 [Next.js Frontend]          ← executive dashboard UI
 ```
