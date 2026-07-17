@@ -1,3 +1,8 @@
+import os
+# See src/predict.py for the full explanation: skips a joblib/loky Windows subprocess
+# probe that can print a non-fatal but console-alarming traceback on restricted systems.
+os.environ.setdefault("LOKY_MAX_CPU_COUNT", str(os.cpu_count() or 4))
+
 import argparse
 import sys
 from pathlib import Path

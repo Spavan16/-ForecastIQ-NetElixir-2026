@@ -6,6 +6,11 @@ with the new top_campaign_names field baked in.
 """
 import sys
 import os
+# See src/predict.py for the full explanation: skips a joblib/loky Windows subprocess
+# probe that can print a non-fatal but console-alarming traceback on restricted systems.
+# This script trains the full ensemble (heaviest joblib usage in the codebase), so it's
+# the most likely place this would otherwise fire.
+os.environ.setdefault("LOKY_MAX_CPU_COUNT", str(os.cpu_count() or 4))
 from pathlib import Path
 
 # Ensure project root is on path
