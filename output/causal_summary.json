@@ -1,58 +1,58 @@
 {
   "generated_by": "MockLLMProvider (offline fallback)",
   "forecast_period": "90_days",
-  "revenue_p50": 963808.8,
-  "roas_p50": 5.41,
+  "revenue_p50": 427857.74,
+  "roas_p50": 2.4,
   "channel_breakdown": [
     {
       "channel": "Google Ads",
       "revenue_p50_90d": 862889.1,
-      "share_pct": 85.7
+      "share_pct": 95.4
     },
     {
       "channel": "Meta Ads",
-      "revenue_p50_90d": 125966.12,
-      "share_pct": 12.5
+      "revenue_p50_90d": 34851.92,
+      "share_pct": 3.9
     },
     {
       "channel": "Bing Ads",
-      "revenue_p50_90d": 18077.19,
-      "share_pct": 1.8
+      "revenue_p50_90d": 6725.04,
+      "share_pct": 0.7
     }
   ],
   "campaign_type_breakdown": [
     {
       "campaign_type": "PERFORMANCE_MAX",
       "revenue_p50_90d": 349632.26,
-      "share_pct": 35.3,
+      "share_pct": 45.2,
       "status": "active",
       "days_since_last_spend": 0
     },
     {
       "campaign_type": "SHOPPING",
       "revenue_p50_90d": 270491.05,
-      "share_pct": 27.3,
+      "share_pct": 35.0,
       "status": "active",
       "days_since_last_spend": 1
     },
     {
       "campaign_type": "SEARCH",
-      "revenue_p50_90d": 239631.23,
-      "share_pct": 24.2,
+      "revenue_p50_90d": 115053.22,
+      "share_pct": 14.9,
       "status": "active",
       "days_since_last_spend": 1
     },
     {
       "campaign_type": "SOCIAL",
-      "revenue_p50_90d": 125966.12,
-      "share_pct": 12.7,
+      "revenue_p50_90d": 34851.92,
+      "share_pct": 4.5,
       "status": "active",
       "days_since_last_spend": 0
     },
     {
       "campaign_type": "DEMAND_GEN",
       "revenue_p50_90d": 3461.93,
-      "share_pct": 0.3,
+      "share_pct": 0.4,
       "status": "dormant",
       "days_since_last_spend": 133
     },
@@ -78,5 +78,5 @@
       "days_since_last_spend": 87
     }
   ],
-  "causal_summary": "[Mock Insight Mode Enabled] Causal Inference Summary: historical revenue growth ($963,809 projected over 90 days) is concentrated in Google Ads, which accounts for 85.7% of forecast channel revenue at 5.66x ROAS - see the Explainability tab for the full SHAP-ranked channel and campaign contributions. Blended ROAS (5.41x) is most sensitive to Meta Ads, which carries the widest 90-day ROAS forecast interval of the active channels (448% of its own P50 value) - a swing there moves the blended number the most. Within that mix, PERFORMANCE_MAX is the largest single campaign-type driver, accounting for 35.3% of forecast revenue at 3.98x ROAS - the Explainability tab's SHAP breakdown traces exactly how much of Google Ads's share above is carried by this campaign type versus the rest of its mix."
+  "causal_summary": "[Mock Insight Mode Enabled] Causal Inference Summary: historical revenue growth ($427,858 projected over 90 days) is concentrated in Google Ads, which accounts for 95.4% of forecast channel revenue at 5.66x ROAS - see the Explainability tab for the full SHAP-ranked channel and campaign contributions. Blended ROAS (2.40x) is most sensitive to Meta Ads, which carries the widest 90-day ROAS forecast interval of the active channels (1366% of its own P50 value) - a swing there moves the blended number the most. Within that mix, PERFORMANCE_MAX is the largest single campaign-type driver, accounting for 45.2% of forecast revenue at 3.98x ROAS - the Explainability tab's SHAP breakdown traces exactly how much of Google Ads's share above is carried by this campaign type versus the rest of its mix."
 }

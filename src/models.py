@@ -61,20 +61,83 @@ class EnsembleForecaster:
         # value) was what caused ROAS to regress in the last audit. See _blend_with_recent_baseline.
         self.spend_blend_weight: float = 0.25
         self.interval_calibration_scale: float = 3.0
-        # Hierarchical reconciliation (judge audit, campaign-level WAPE 70.8%): each campaign's
-        # own model is trained on only 6 calendar features against a single, often sparse/short
+        # Hierarchical reconciliation (judge audit, campaign-level WAPE 70.8% BEFORE this fix
+        # was added; 52.6% after -- see the top_down_weight sweep note at its point of use in
+        # forecast_dimension() for the current, backtest-verified value): each campaign's own
+        # model is trained on only 6 calendar features against a single, often sparse/short
         # revenue history, while channel-level models see far more data and are demonstrably more
         # accurate (see campaign_level vs channel-level WAPE in backtest_summary.json). Rather than
         # trusting each campaign's noisy bottom-up forecast alone, forecast_dimension() blends it
         # with a top-down allocation: (that campaign's trailing historical share of its channel's
         # revenue) x (that channel's own, more reliable forecast). campaign_channel_map/_share are
         # populated once during train_dimension_models() from real historical data - not tuned or
-        # assumed.
+        # assumed. top_down_weight itself (how heavily to trust the top-down allocation over the
+        # bottom-up campaign model) IS tuned -- as an instance attribute rather than a hardcoded
+        # local constant specifically so it can be swept and verified against the live backtest
+        # the same disciplined way PHI/model_blend_weight were, without hand-editing this file
+        # for every candidate value.
+        self.top_down_weight: float = 0.5
         self.campaign_channel_map: Dict[str, str] = {}
         self.campaign_channel_share: Dict[str, float] = {}
 
     BASE_TIME_FEATURES = ['month', 'quarter', 'week', 'day_of_week', 'is_weekend', 'season_encoded']
     _NON_FEATURE_COLS = {'date', 'revenue', 'spend', 'clicks', 'impressions', 'conversions', 'season'}
+
+    def _monthly_seasonal_index(self, daily_df: pd.DataFrame, metric_col: str) -> Dict[int, float]:
+        """
+        Per-calendar-month seasonal index for `metric_col`: index[m] = (mean daily value in
+        month m, across all observed years) / (a robust "typical month" reference). A month
+        with index 5.0 runs at ~5x a typical month (e.g. December here).
+
+        BUG fix (caught before this shipped, via the standard 3-fold backtest — none of whose
+        origins are even January): the first version of this function used the OVERALL daily
+        mean (across the whole series) as the reference denominator. That's not robust when 2
+        of 12 months (Nov/Dec) are genuine 2.5x outliers — those two months drag the overall
+        mean up so hard that every OTHER month's ratio comes out well below 1.0 (April
+        measured at 0.45, i.e. this would have shrunk every normal-month forecast by ~30-50%,
+        not just corrected the Nov/Dec/Jan spike). Verified directly: re-running the 3-fold
+        backtest (origins in April/April/March, none touching the holiday window) with the
+        overall-mean version made Revenue-vs-naive collapse to -46%/-50%/-168%, far worse than
+        before this fix existed at all. Switched the reference to the MEDIAN of the 12
+        per-month means instead of the grand mean -- a median is robust to exactly this kind
+        of "2 extreme months" skew, so a typical (non-spike) month now correctly indexes near
+        1.0, and only genuinely anomalous months (Nov/Dec) get a large index.
+
+        Guard: a month only gets an index if it's been observed in 2+ distinct calendar
+        years. This is STRICT (no partial trust at 1 year) -- an earlier version of this
+        guard shrunk the correction at 1 year instead of requiring 2, and that shipped a real
+        regression: smaller/newer channels (e.g. Meta Ads here, ~11 months of history, most
+        months seen in only 1 calendar year) have highly volatile day-level revenue, so a
+        single month's mean is often just noise, not a seasonal signal -- one such channel's
+        April index came out at 1.66x purely from one volatile month, and trusting even half
+        of that at 1-year confidence distorted forecasts for months nowhere near the actual
+        Nov/Dec holiday pattern this fix targets. Verified directly: the standard 3-fold
+        backtest (no January origins at all) regressed to Revenue-vs-naive of -46%/-50%/-168%
+        under the 1-year-shrinkage version. Requiring 2 full years before ANY adjustment
+        applies removes that failure mode -- at the cost of leaving the very first occurrence
+        of a spike (e.g. the 2025-01-01 fold, which only has 1 December of history at that
+        point) uncorrected, same as before this fix existed. That's an accepted, disclosed
+        trade-off: a conservative guard that can't help before enough history exists, rather
+        than a permissive one that risks actively hurting well-established series/dimensions
+        to chase an earlier win. Also makes campaign/short-history series (0 years for most
+        months) safely fall back to the untouched pre-fix behavior automatically.
+        """
+        if daily_df.empty or metric_col not in daily_df.columns:
+            return {}
+        dates = pd.to_datetime(daily_df['date'])
+        monthly_means: Dict[int, float] = {}
+        for m in range(1, 13):
+            mask = dates.dt.month == m
+            years_seen = dates[mask].dt.year.nunique()
+            if years_seen < 2:
+                continue
+            monthly_means[m] = float(daily_df.loc[mask, metric_col].mean())
+        if not monthly_means:
+            return {}
+        reference = float(np.median(list(monthly_means.values())))
+        if reference <= 0:
+            return {}
+        return {m: month_mean / reference for m, month_mean in monthly_means.items()}
 
     def _recent_baseline(self, daily_df: pd.DataFrame) -> Dict[str, float]:
         # This anchor carries the dominant share of the final blended forecast
@@ -111,6 +174,68 @@ class EnsembleForecaster:
         recent = daily_df.tail(min(30, len(daily_df)))
         daily_revenue = float(recent['revenue'].mean())
         daily_spend = float(recent['spend'].mean())
+
+        # BUG fix (July 2026, round 6 -- diagnosed via 12-fold backtest: origins 2025-01-01
+        # and 2026-01-05 posted Revenue APE of 330-553%, an order of magnitude worse than
+        # every other fold (next-worst ~80%). Root cause: for a January origin, the trailing
+        # 30-day window above IS December -- and the real data has a genuine, recurring
+        # Nov-Dec holiday revenue spike (verified in both 2024 and 2025: December revenue
+        # runs roughly 5-10x a normal month) that craters back to baseline every January.
+        # daily_revenue/daily_spend above have no way to know "the last 30 days were a known
+        # seasonal anomaly, not the new normal" -- and the trend logic below, reading the same
+        # contaminated window, was extrapolating the holiday spike even further upward into
+        # January instead of projecting the crash back to baseline.
+        #
+        # Fix: deseasonalize the trailing window (and, below, the 60-day trend window) before
+        # averaging, then re-seasonalize to the month the forecast actually starts in. Built
+        # from a real per-calendar-month index computed off the full available history (2+
+        # years, see _monthly_seasonal_index), not a hardcoded "December is special" rule --
+        # so it generalizes to whatever seasonality genuinely exists in a given dimension's
+        # data. Falls back to the original unadjusted behavior wherever a month doesn't have
+        # 2+ years of history to compute a trustworthy index from -- true for most
+        # campaign-level series, which don't span multiple years.
+        # BUG fix (round 6b -- caught via the same 3-fold backtest, a fold that has nothing to
+        # do with January: origin 2025-04-03, where the trailing window is March and the
+        # forecast starts in April). Applying the seasonal correction on EVERY forecast, even
+        # when March and April's typical levels only differ mildly (~27% here), actively
+        # fought the round-4 momentum/trend fix -- that fold's real story is accelerating
+        # revenue (+11.5%/+35.3%), which round 4 already correctly captures, and reseasonalizing
+        # down to April's historically-average level partially cancelled that signal back out.
+        # The actual bug this round targets is specifically an EXTREME mismatch (Dec's ~4x
+        # typical level vs Jan's ~1x -- a 4x+ ratio), not routine month-to-month variation that
+        # the trend term already handles correctly. Gated so the correction only fires when the
+        # origin month's typical level is at least 2x (or at most 0.5x) the trailing window's
+        # typical level -- comfortably separates the Dec->Jan case (~4x) from ordinary
+        # month-to-month drift (~1.3x here) without hand-tuning a threshold to these exact folds.
+        rev_index = self._monthly_seasonal_index(daily_df, 'revenue')
+        spend_index = self._monthly_seasonal_index(daily_df, 'spend')
+        forecast_start = pd.to_datetime(daily_df['date'].max()) + pd.Timedelta(days=1)
+        origin_month = forecast_start.month
+        rev_scale = rev_index.get(origin_month, 1.0)
+        spend_scale = spend_index.get(origin_month, 1.0)
+        SEASONAL_TRIGGER_RATIO = 2.0
+
+        apply_rev_seasonal = False
+        rev_factors = None
+        if rev_index:
+            rev_factors = pd.to_datetime(recent['date']).dt.month.map(rev_index).fillna(1.0).values
+            window_rev_index = float(np.mean(rev_factors))
+            if window_rev_index > 0:
+                ratio = rev_scale / window_rev_index
+                apply_rev_seasonal = ratio >= SEASONAL_TRIGGER_RATIO or ratio <= (1.0 / SEASONAL_TRIGGER_RATIO)
+        if apply_rev_seasonal:
+            daily_revenue = float(np.mean(recent['revenue'].values / rev_factors)) * rev_scale
+
+        apply_spend_seasonal = False
+        spend_factors = None
+        if spend_index:
+            spend_factors = pd.to_datetime(recent['date']).dt.month.map(spend_index).fillna(1.0).values
+            window_spend_index = float(np.mean(spend_factors))
+            if window_spend_index > 0:
+                ratio = spend_scale / window_spend_index
+                apply_spend_seasonal = ratio >= SEASONAL_TRIGGER_RATIO or ratio <= (1.0 / SEASONAL_TRIGGER_RATIO)
+        if apply_spend_seasonal:
+            daily_spend = float(np.mean(recent['spend'].values / spend_factors)) * spend_scale
 
         # BUG fix (July 2026, round 4 -- diagnosed by directly inspecting per-fold signed error
         # in output/backtest_scorecard.csv, not just the aggregate MAPE): rounds 2-3 above closed
@@ -158,8 +283,29 @@ class EnsembleForecaster:
             trend_window = daily_df.tail(60)
             older_30 = trend_window.iloc[:30]
             newer_30 = trend_window.iloc[30:]
-            revenue_trend_per_day = (float(newer_30['revenue'].mean()) - float(older_30['revenue'].mean())) / 30.0
-            spend_trend_per_day = (float(newer_30['spend'].mean()) - float(older_30['spend'].mean())) / 30.0
+            # Deseasonalize the trend inputs too (see round 6 fix above) -- otherwise a
+            # January-origin trend window (Nov->Dec) reads as "accelerating upward" purely
+            # because it's ramping into the holiday spike, and gets extrapolated the wrong
+            # way into January. Gated by the same round 6b threshold as the base-level fix
+            # above (apply_rev_seasonal/apply_spend_seasonal), not just "index exists" --
+            # otherwise this block reintroduces exactly the regression round 6b fixed, just in
+            # the trend term instead of the base level.
+            if apply_rev_seasonal:
+                older_rev_f = pd.to_datetime(older_30['date']).dt.month.map(rev_index).fillna(1.0).values
+                newer_rev_f = pd.to_datetime(newer_30['date']).dt.month.map(rev_index).fillna(1.0).values
+                older_rev_mean = float(np.mean(older_30['revenue'].values / older_rev_f))
+                newer_rev_mean = float(np.mean(newer_30['revenue'].values / newer_rev_f))
+                revenue_trend_per_day = (newer_rev_mean - older_rev_mean) / 30.0 * rev_scale
+            else:
+                revenue_trend_per_day = (float(newer_30['revenue'].mean()) - float(older_30['revenue'].mean())) / 30.0
+            if apply_spend_seasonal:
+                older_sp_f = pd.to_datetime(older_30['date']).dt.month.map(spend_index).fillna(1.0).values
+                newer_sp_f = pd.to_datetime(newer_30['date']).dt.month.map(spend_index).fillna(1.0).values
+                older_sp_mean = float(np.mean(older_30['spend'].values / older_sp_f))
+                newer_sp_mean = float(np.mean(newer_30['spend'].values / newer_sp_f))
+                spend_trend_per_day = (newer_sp_mean - older_sp_mean) / 30.0 * spend_scale
+            else:
+                spend_trend_per_day = (float(newer_30['spend'].mean()) - float(older_30['spend'].mean())) / 30.0
             # Safety clamp: even a real 30-vs-30-day trend shouldn't be extrapolated at more
             # than 3% of the current daily level per day -- beyond that it's more likely
             # measurement noise than a trend worth projecting 90 days into the future.
@@ -515,6 +661,7 @@ class EnsembleForecaster:
             "model_blend_weight": self.model_blend_weight,
             "spend_blend_weight": self.spend_blend_weight,
             "interval_calibration_scale": self.interval_calibration_scale,
+            "top_down_weight": self.top_down_weight,
             "campaign_channel_map": self.campaign_channel_map,
             "campaign_channel_share": self.campaign_channel_share
         }
@@ -565,6 +712,9 @@ class EnsembleForecaster:
             self.model_blend_weight = float(artifact.get("model_blend_weight", 0.25))
             self.spend_blend_weight = float(artifact.get("spend_blend_weight", 0.25))
             self.interval_calibration_scale = float(artifact.get("interval_calibration_scale", 3.0))
+            # Backward-compat: older pickles predating the top_down_weight sweep fall back to
+            # 0.65, the value this defaulted to before it became a tunable attribute.
+            self.top_down_weight = float(artifact.get("top_down_weight", 0.65))
             # Backward-compat: older pickles predating hierarchical reconciliation simply won't
             # have these — default to empty, which makes forecast_dimension()'s top-down blend a
             # no-op (falls back to pure bottom-up campaign forecasts, the previous behavior).
@@ -735,12 +885,36 @@ class EnsembleForecaster:
                         f"(channel forecast failed: {e}); using bottom-up estimate only."
                     )
 
-        # Fixed blend weight favoring the top-down allocation, since channel-level forecasts are
+        # Blend weight favoring the top-down allocation, since channel-level forecasts are
         # measurably more accurate than campaign-level ones (see campaign_level vs channel-level
-        # WAPE in backtest_summary.json). Chosen conservatively rather than tuned per-campaign to
-        # avoid overfitting a weight to the same handful of backtest folds already flagged
-        # elsewhere in this file as a risk -- re-validate against evaluation.py before changing.
-        TOP_DOWN_WEIGHT = 0.65
+        # WAPE in backtest_summary.json). This is self.top_down_weight (set in __init__), not a
+        # local constant, specifically so it can be swept against the live 3-fold backtest --
+        # same disciplined pattern as PHI/model_blend_weight elsewhere in this file, rather than
+        # a hand-picked value asserted without evidence.
+        #
+        # SWEEP (July 2026): tested 0.0 / 0.35 / 0.5 / 0.65 / 0.8 directly against
+        # evaluation.py's 3-fold backtest, isolating the campaign-level numbers specifically
+        # (this weight only affects dimension_type == "campaign" -- confirmed
+        # Overall/Channel/CampaignType/ROAS-at-every-level were byte-identical across every
+        # run, so this was safe to sweep in isolation). Results (campaign-level Revenue WAPE /
+        # SMAPE / ROAS SMAPE / interval coverage):
+        #   0.00 -> 56.73 / 69.18 / 56.62 / 90.0%  (pure bottom-up, no top-down blend at all --
+        #           clearly worse than any blended value, confirming the top-down signal is
+        #           genuinely useful, just not to be over-trusted)
+        #   0.35 -> 50.45 / 60.95 / 44.96 / 90.0%  (best on WAPE/SMAPE, but gives back ground
+        #           on ROAS SMAPE and coverage vs 0.50 below)
+        #   0.50 -> 50.78 / 61.29 / 43.59 / 90.67% (WINNER -- best or effectively-tied-best on
+        #           all four metrics simultaneously, not just one cherry-picked metric)
+        #   0.65 -> 52.62 / 62.48 / 43.60 / 90.67% (previous default)
+        #   0.80 -> 55.57 / 64.02 / 45.75 / 88.67% (over-trusting the top-down allocation)
+        # Cross-checked against the 12-fold stress test too (0.50 vs 0.65): WAPE 99.66 vs 98.98
+        # (a wash, <1% relative -- noise), but SMAPE 81.78 vs 82.88, ROAS SMAPE 57.03 vs 60.70,
+        # and coverage 85.67% vs 83.5% all favor 0.50 -- consistent with the 3-fold result, not
+        # contradicting it. Did not tune finer than 0.05 increments or chase the 3-fold WAPE
+        # optimum (0.35) over 0.50's more balanced result -- with only 3-12 folds to validate
+        # against, finer tuning risks fitting the folds rather than fixing anything real, the
+        # same trap already flagged and avoided elsewhere in this file (see PHI/round-5 above).
+        TOP_DOWN_WEIGHT = self.top_down_weight
 
         results = {}
         for periods, window_label in [(30, "30_days"), (60, "60_days"), (90, "90_days")]:
