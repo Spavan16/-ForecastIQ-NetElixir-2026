@@ -698,8 +698,19 @@ function TabOverview({ data, loading, error }: { data: OverviewState | null; loa
               horizon_std = std_rev * (day+1)**0.75, then p10 = max(0, p50 - 1.28*horizon_std)),
               so P10 floors at exactly $0 starting day 1, for the whole window. That's real
               model output, not a bug — this just says so instead of pretending otherwise. */}
-          <p className="relative text-[11px] text-[#8A7A6E]/80 italic -mt-2 mb-3">
+          <p className="relative text-[11px] text-[#8A7A6E]/80 italic -mt-2 mb-1">
             P10 floors at $0 across most of this horizon — daily-level volatility in the underlying model exceeds the median forecast.
+          </p>
+          {/* Second, distinct caption (not a restatement of the one above): explains WHY this
+              chart's band looks so much wider than the 90-day revenue KPI cards elsewhere on
+              this page, so it doesn't read as inconsistent or broken. This chart's P10/P90 are
+              per-DAY at horizon N (backend main.py: horizon_std = std_rev*(day+1)**0.75, no
+              floor beyond max(0,...)) — genuinely noisier than a 90-day SUM, since summing 90
+              days cancels out day-to-day noise a single far-out day can't. Both numbers are
+              real model output computed the same disciplined way; they just answer different
+              questions ("what will day 90 alone look like" vs "what will the 90-day total be"). */}
+          <p className="relative text-[11px] text-[#8A7A6E]/80 italic -mt-1 mb-3">
+            Shown here is uncertainty for that single day's revenue, not the cumulative forecast — a lone day out at D90 is naturally far noisier than the 90-day total shown above, since summing days cancels out day-to-day noise a single point can't.
           </p>
           <ResponsiveContainer width="100%" height={340}>
             <AreaChart data={trajData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>

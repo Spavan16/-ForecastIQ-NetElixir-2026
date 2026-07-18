@@ -60,7 +60,31 @@ class EnsembleForecaster:
         # independently, and dropping this alongside model_blend_weight (both used to share one
         # value) was what caused ROAS to regress in the last audit. See _blend_with_recent_baseline.
         self.spend_blend_weight: float = 0.25
-        self.interval_calibration_scale: float = 3.0
+        # Interval calibration multiplier applied on top of std_daily*(periods**0.75) in
+        # _aggregate_probabilistic_sums() to produce the final P10-P90 band. Previously a bare
+        # 3.0 with no documented justification (unlike PHI/model_blend_weight/top_down_weight
+        # below, all of which carry a sweep note) -- and it showed: interval_coverage in
+        # output/backtest_summary.json sat at 98.51%, a large overshoot against the ~80% target
+        # that 1.28*std is actually built for (the 10th/90th percentile z-score under a normal
+        # approximation). An interval that wide isn't "safe," it's uninformative -- and
+        # downstream, the frontend's deriveConfidence() (relativeSpread = (p90-p10)/p50) reads
+        # that wide a band as forecast confidence saturating at its 35% floor on nearly every
+        # tab/horizon, regardless of how good the underlying point estimate actually is.
+        #
+        # SWEEP (July 2026): tested 1.0/1.5/2.0/2.5/3.0 directly against the live 3-fold
+        # backtest's interval_coverage (revenue_wape/revenue_smape/roas_smape were BYTE-IDENTICAL
+        # across every value -- this constant only widens/narrows the P10-P90 band, it never
+        # touches the P50 point estimate, so tightening it is a pure win with zero accuracy cost):
+        #   1.0 -> 82.09% coverage  (closest to the 80% target)
+        #   1.5 -> 91.04%
+        #   2.0 -> 95.52%
+        #   2.5 -> 98.51%  (P10 floor -- max(p50*0.05, p10_raw) -- already saturating here)
+        #   3.0 -> 98.51%  (previous default; identical to 2.5, confirming the floor is binding)
+        # 1.0 selected as the closest match to the 80% target. Did not chase finer increments
+        # (e.g. 0.8/0.9) to hunt an exact 80.0% -- with only 3 backtest folds, tuning finer than
+        # this risks fitting these specific folds rather than a real property of the data, the
+        # same trap already flagged and avoided for PHI/top_down_weight elsewhere in this file.
+        self.interval_calibration_scale: float = 1.0
         # Hierarchical reconciliation (judge audit, campaign-level WAPE 70.8% BEFORE this fix
         # was added; 52.6% after -- see the top_down_weight sweep note at its point of use in
         # forecast_dimension() for the current, backtest-verified value): each campaign's own

@@ -14,13 +14,13 @@
     "revenue_smape": 35.1998,
     "roas_rmse": 3.7101,
     "roas_smape": 26.2077,
-    "interval_coverage": 98.5075
+    "interval_coverage": 82.0896
   },
   "campaign_level": {
     "revenue_wape": 50.7848,
     "revenue_smape": 61.289,
     "roas_smape": 43.5924,
-    "interval_coverage": 90.6667,
+    "interval_coverage": 77.3333,
     "rows_scored": 150,
     "note": "Individual named campaigns inherit substantially higher variance than portfolio- or channel-level forecasts, since campaign lifecycles (e.g. wind-down, budget exhaustion) aren't modeled without an explicit end-date signal."
   },
@@ -35,7 +35,7 @@
       "mape": 31.8983,
       "smape": 48.5071,
       "wape": 72.4824,
-      "interval_coverage": 92.0
+      "interval_coverage": 76.0
     },
     {
       "metric": "ROAS",
@@ -47,7 +47,7 @@
       "mape": 28.188,
       "smape": 28.879,
       "wape": 43.884,
-      "interval_coverage": 100.0
+      "interval_coverage": 83.3333
     },
     {
       "metric": "ROAS",
@@ -59,7 +59,7 @@
       "mape": 29.2149,
       "smape": 31.1566,
       "wape": 31.6172,
-      "interval_coverage": 100.0
+      "interval_coverage": 57.1429
     },
     {
       "metric": "ROAS",
@@ -71,7 +71,7 @@
       "mape": 20.0161,
       "smape": 18.1565,
       "wape": 13.4704,
-      "interval_coverage": 100.0
+      "interval_coverage": 66.6667
     },
     {
       "metric": "ROAS",
@@ -83,7 +83,7 @@
       "mape": 25.3795,
       "smape": 41.3825,
       "wape": 51.7967,
-      "interval_coverage": 92.0
+      "interval_coverage": 80.0
     },
     {
       "metric": "ROAS",
@@ -95,7 +95,7 @@
       "mape": 18.029,
       "smape": 15.654,
       "wape": 21.7516,
-      "interval_coverage": 100.0
+      "interval_coverage": 83.3333
     },
     {
       "metric": "ROAS",
@@ -107,7 +107,7 @@
       "mape": 26.3152,
       "smape": 31.1467,
       "wape": 24.3735,
-      "interval_coverage": 100.0
+      "interval_coverage": 85.7143
     },
     {
       "metric": "ROAS",
@@ -119,7 +119,7 @@
       "mape": 9.3855,
       "smape": 8.6386,
       "wape": 5.8075,
-      "interval_coverage": 100.0
+      "interval_coverage": 66.6667
     },
     {
       "metric": "ROAS",
@@ -131,7 +131,7 @@
       "mape": 25.5969,
       "smape": 40.8875,
       "wape": 56.8726,
-      "interval_coverage": 92.0
+      "interval_coverage": 80.0
     },
     {
       "metric": "ROAS",
@@ -143,7 +143,7 @@
       "mape": 21.7814,
       "smape": 32.0827,
       "wape": 24.5804,
-      "interval_coverage": 92.3077
+      "interval_coverage": 84.6154
     },
     {
       "metric": "ROAS",
@@ -167,7 +167,7 @@
       "mape": 16.807,
       "smape": 15.0673,
       "wape": 15.4233,
-      "interval_coverage": 100.0
+      "interval_coverage": 33.3333
     },
     {
       "metric": "Revenue",
@@ -179,7 +179,7 @@
       "mape": 52.8059,
       "smape": 56.0089,
       "wape": 46.0299,
-      "interval_coverage": 92.0
+      "interval_coverage": 76.0
     },
     {
       "metric": "Revenue",
@@ -191,7 +191,7 @@
       "mape": 29.7339,
       "smape": 31.7023,
       "wape": 33.6463,
-      "interval_coverage": 100.0
+      "interval_coverage": 91.6667
     },
     {
       "metric": "Revenue",
@@ -203,7 +203,7 @@
       "mape": 48.6632,
       "smape": 39.1433,
       "wape": 23.471,
-      "interval_coverage": 100.0
+      "interval_coverage": 85.7143
     },
     {
       "metric": "Revenue",
@@ -215,7 +215,7 @@
       "mape": 18.5309,
       "smape": 18.5233,
       "wape": 16.4704,
-      "interval_coverage": 100.0
+      "interval_coverage": 33.3333
     },
     {
       "metric": "Revenue",
@@ -227,7 +227,7 @@
       "mape": 92.6404,
       "smape": 60.2704,
       "wape": 48.1857,
-      "interval_coverage": 92.0
+      "interval_coverage": 76.0
     },
     {
       "metric": "Revenue",
@@ -239,7 +239,7 @@
       "mape": 33.8782,
       "smape": 36.2916,
       "wape": 41.0916,
-      "interval_coverage": 100.0
+      "interval_coverage": 91.6667
     },
     {
       "metric": "Revenue",
@@ -251,7 +251,7 @@
       "mape": 44.4646,
       "smape": 44.8949,
       "wape": 26.6505,
-      "interval_coverage": 100.0
+      "interval_coverage": 85.7143
     },
     {
       "metric": "Revenue",
@@ -263,7 +263,7 @@
       "mape": 17.4245,
       "smape": 17.5095,
       "wape": 14.8505,
-      "interval_coverage": 100.0
+      "interval_coverage": 33.3333
     },
     {
       "metric": "Revenue",
@@ -275,7 +275,7 @@
       "mape": 140.5721,
       "smape": 67.5878,
       "wape": 54.506,
-      "interval_coverage": 84.0
+      "interval_coverage": 76.0
     },
     {
       "metric": "Revenue",
@@ -311,7 +311,7 @@
       "mape": 6.1377,
       "smape": 5.7595,
       "wape": 3.2921,
-      "interval_coverage": 100.0
+      "interval_coverage": 66.6667
     }
   ],
   "baseline_comparison": [
