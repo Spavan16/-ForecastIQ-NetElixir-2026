@@ -11,6 +11,34 @@ logger = get_logger("LLMProvider")
 # Load environment variables from .env
 load_dotenv()
 
+
+def _strip_markdown(text: str) -> str:
+    """
+    Gemini ignores the "plain prose, not markdown" instruction in the system prompt often
+    enough that relying on prompting alone isn't reliable -- observed live output included
+    **bold** spans and occasional bullet/header lines even with that instruction present.
+    This is a deterministic post-process safety net applied to every live Gemini response
+    (both generate_insight and ask_question) so the dashboard never renders raw markdown
+    syntax to the user regardless of what the model actually returns. Does not touch
+    MockLLMProvider output, which is already plain prose by construction.
+    """
+    import re
+    # Bold/italic emphasis: **text**, __text__, *text*, _text_ -> text
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"__(.+?)__", r"\1", text)
+    text = re.sub(r"(?<!\w)\*(?!\s)(.+?)(?<!\s)\*(?!\w)", r"\1", text)
+    text = re.sub(r"(?<!\w)_(?!\s)(.+?)(?<!\s)_(?!\w)", r"\1", text)
+    # Markdown headers: "## Heading" -> "Heading"
+    text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
+    # Bullet/numbered list markers at line start -> plain text, joined with a space
+    text = re.sub(r"^\s*[-*•]\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^\s*\d+\.\s+", "", text, flags=re.MULTILINE)
+    # Collapse the newlines those list items left behind into single spaces, then
+    # normalize any leftover double-spacing from the substitutions above.
+    text = re.sub(r"\n+", " ", text)
+    text = re.sub(r" {2,}", " ", text)
+    return text.strip()
+
 class BaseLLMProvider(ABC):
     """Abstract base class for AI/LLM functionality."""
 
@@ -223,7 +251,8 @@ class GeminiProvider(BaseLLMProvider):
             try:
                 res = requests.post(self.endpoint, json=data, timeout=10)
                 if res.status_code == 200:
-                    return res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    raw = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    return _strip_markdown(raw)
                 else:
                     logger.warning(f"Gemini API error {res.status_code}: {res.text} (attempt {attempt+1}/{max_attempts})")
             except Exception as e:
@@ -254,7 +283,8 @@ class GeminiProvider(BaseLLMProvider):
             try:
                 res = requests.post(self.endpoint, json=data, timeout=10)
                 if res.status_code == 200:
-                    return res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    raw = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    return _strip_markdown(raw)
                 else:
                     logger.warning(f"Gemini Chat error {res.status_code} (attempt {attempt+1}/{max_attempts})")
             except Exception as e:
