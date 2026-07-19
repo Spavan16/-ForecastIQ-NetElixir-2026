@@ -1,11 +1,26 @@
 # ForecastIQ — AI-Powered Revenue Intelligence Platform
 **Tagline:** "From Marketing Spend to Revenue Certainty — 30, 60, and 90-Day Enterprise Outlook"
 
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Runtime](https://img.shields.io/badge/network-100%25%20offline-brightgreen)
+![Hackathon](https://img.shields.io/badge/NetElixir-AIgnition%203.0-orange)
+![Models](https://img.shields.io/badge/ensemble-Prophet%20%7C%20XGBoost%20%7C%20LightGBM%20%7C%20CatBoost-informational)
+
 **Team:** Team ForecastIQ  
 **Members:** Pavan Kumar S (ENG24AD0047), Rohindth  
 **College / Institution:** Dayananda Sagar University, Bengaluru  
 **Challenge:** NetElixir AIgnition 3.0 Hackathon Challenge  
 **Python Version:** 3.11+
+
+---
+
+## Contents
+- [Challenge & Executive Overview](#-challenge--executive-overview)
+- [At a Glance](#-at-a-glance)
+- [Key Features & Hackathon Deliverables](#-key-features--hackathon-deliverables)
+- [System Architecture & Folder Structure](#-system-architecture--folder-structure)
+- [Technical Documentation](#-technical-documentation)
+- [Execution & Demo Walkthrough](#-execution--demo-walkthrough)
 
 ---
 
