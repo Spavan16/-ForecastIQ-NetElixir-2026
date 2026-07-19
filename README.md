@@ -6,8 +6,8 @@
 ![Hackathon](https://img.shields.io/badge/NetElixir-AIgnition%203.0-orange)
 ![Models](https://img.shields.io/badge/ensemble-Prophet%20%7C%20XGBoost%20%7C%20LightGBM%20%7C%20CatBoost-informational)
 
-**Team:** Team ForecastIQ  
-**Members:** Pavan Kumar S (ENG24AD0047), Rohindth  
+**Team:** Bytes & Dust  
+**Members:** Rohindth S N, Pavan Kumar S  
 **College / Institution:** Dayananda Sagar University, Bengaluru  
 **Challenge:** NetElixir AIgnition 3.0 Hackathon Challenge  
 **Python Version:** 3.11+
