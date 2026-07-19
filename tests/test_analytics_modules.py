@@ -86,6 +86,69 @@ def test_budget_optimizer_fits_and_simulates():
           "responds monotonically to a spend increase.")
 
 
+def test_budget_optimizer_excludes_zero_revenue_ramp_up_months():
+    """Regression test for the zero-revenue-ramp-up fix in _fit_channel_efficiency (see the
+    'BUG fix (Budget Optimizer audit, July 2026)' comment in budget_optimizer.py). This module
+    has no other backtest harness, unlike models.py -- this is the lightweight substitute:
+    construct a channel with a real launch/tracking-ramp period (genuine spend, zero revenue)
+    followed by a known, stable alpha*spend^beta relationship, and verify the fitted alpha
+    tracks the TRUE post-ramp efficiency rather than being dragged down by the contaminated
+    zero-revenue months averaged in unfiltered.
+    """
+    beta_true = 0.78
+    alpha_true = 30.0
+    rng = np.random.default_rng(11)
+
+    rows = []
+    # Months 1-3: real spend, genuinely zero revenue (launch/tracking-ramp period) --
+    # structurally identical to the documented Bing Ads 2024-05/06/07 case.
+    ramp_months = pd.date_range("2024-01-01", periods=3, freq="MS")
+    ramp_daily_spend = [28.0 / 30, 3436.0 / 30, 4396.0 / 30]
+    for m, daily_sp in zip(ramp_months, ramp_daily_spend):
+        for d in pd.date_range(m, periods=28, freq="D"):
+            rows.append({"date": d, "channel": "Bing Ads", "spend": daily_sp, "revenue": 0.0})
+
+    # Months 4-15: genuine, stable efficiency curve with light noise -- this is the "true"
+    # relationship the fit should recover once the zero-revenue months are excluded.
+    mature_months = pd.date_range("2024-04-01", periods=12, freq="MS")
+    for m in mature_months:
+        monthly_spend = float(rng.uniform(2000.0, 6000.0))
+        monthly_revenue = alpha_true * (monthly_spend ** beta_true) * float(rng.normal(1.0, 0.03))
+        daily_sp = monthly_spend / 28.0
+        daily_rev = monthly_revenue / 28.0
+        for d in pd.date_range(m, periods=28, freq="D"):
+            rows.append({"date": d, "channel": "Bing Ads", "spend": daily_sp, "revenue": daily_rev})
+
+    df = pd.DataFrame(rows)
+    opt = BudgetOptimizer(df)
+    fitted_alpha = opt.channel_params["Bing Ads"]["alpha"]
+
+    # Sanity replica of the OLD buggy behavior (spend>0 filter only, no revenue>0 filter) to
+    # confirm this synthetic setup actually exercises the bug, not just a trivially-passing
+    # dataset. If the old filter were still in place, the 3 zero-revenue ramp months would be
+    # averaged into avg_monthly_rev/avg_monthly_sp and drag alpha down noticeably.
+    df_c = df.copy()
+    df_c["year_month"] = df_c["date"].dt.to_period("M")
+    monthly_old_buggy = df_c.groupby("year_month").agg({"spend": "sum", "revenue": "sum"}).reset_index()
+    monthly_old_buggy = monthly_old_buggy[monthly_old_buggy["spend"] > 0]  # old filter only
+    old_buggy_alpha = monthly_old_buggy["revenue"].mean() / (monthly_old_buggy["spend"].mean() ** beta_true)
+
+    assert old_buggy_alpha < fitted_alpha * 0.9, (
+        "Synthetic setup should reproduce the bug's contamination (old-filter alpha "
+        f"{old_buggy_alpha:.2f} should be meaningfully lower than the fixed fit {fitted_alpha:.2f}) "
+        "-- if not, this test isn't actually exercising the fix."
+    )
+    # The fix should recover something close to the true post-ramp alpha, not the
+    # zero-revenue-contaminated one.
+    assert abs(fitted_alpha - alpha_true) / alpha_true < 0.15, (
+        f"Fitted alpha {fitted_alpha:.2f} should be within 15% of the true post-ramp alpha "
+        f"{alpha_true} once zero-revenue ramp-up months are excluded, got {fitted_alpha:.2f}"
+    )
+    print(f"PASS: BudgetOptimizer excludes zero-revenue ramp-up months from efficiency fitting -- "
+          f"fitted alpha {fitted_alpha:.2f} tracks true {alpha_true} (old buggy filter would have "
+          f"given {old_buggy_alpha:.2f}).")
+
+
 def test_budget_optimizer_allocation_respects_budget_and_reports_feasibility():
     df = _synthetic_channel_df()
     opt = BudgetOptimizer(df)
@@ -295,6 +358,7 @@ def test_scenario_generator_handles_missing_keys_with_documented_defaults():
 
 if __name__ == "__main__":
     test_budget_optimizer_fits_and_simulates()
+    test_budget_optimizer_excludes_zero_revenue_ramp_up_months()
     test_budget_optimizer_allocation_respects_budget_and_reports_feasibility()
     test_derive_revenue_volatility_bounds_and_fallback()
     test_monte_carlo_simulation_invariants()
