@@ -472,7 +472,15 @@ class BudgetOptRequest(BaseModel):
 def optimize_budget_allocation(req: BudgetOptRequest):
     state = get_analytics_state()
     opt = state["budget_opt"]
-    res = opt.optimize_allocation(req.max_budget, req.target_roas)
+    # BUG fix (pre-submission live API audit): optimize_allocation() already fails loudly
+    # with a ValueError for max_budget <= 0 (see budget_optimizer.py), but nothing here
+    # caught it -- FastAPI's default handler turned that clean, informative ValueError into
+    # an opaque "Internal Server Error" 500 with no message reaching the frontend/judge.
+    # Surface it as a proper 400 with the actual reason instead.
+    try:
+        res = opt.optimize_allocation(req.max_budget, req.target_roas)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return res
 
 
