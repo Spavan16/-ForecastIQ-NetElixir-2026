@@ -255,6 +255,15 @@ Here is what the currently shipped model (`scale=1.0`) actually produces, run fr
 
 Coverage does not move monotonically with fold count — 8-fold is the worst of the three, not a midpoint between 3 and 12, and we do not have a verified root cause for why. **We're flagging this explicitly as a known, unexplained open question, not a solved one** — we found and disclosed the effect but ran out of time before submission to root-cause it (e.g. checking whether it traces to a specific fold origin landing in a sparse or seasonally-unusual window, the same class of issue as the January bug documented above, remains an open next step). We chose not to re-tune `interval_calibration_scale` against this new 8-fold number under submission-deadline pressure, because doing so risks fitting this specific fold sample rather than fixing anything structural — the same overfitting trap this section already calls out for the Revenue-vs-naive tuning above. The honest summary: interval coverage against the shipped model is real, reproducible, and meaningfully below the ~90% nominal target under every fold count tested here, most severely at 8-fold. Point estimates (WAPE, ROAS/Revenue MAPE) are separate from and unaffected by this calibration layer, since the interval scale only widens P10/P90, not the P50 forecast itself.
 
+### Option 1C: Automated Test Suite
+No pytest dependency (kept `requirements.txt` locked this close to the deadline) — each file uses plain asserts and runs standalone with the project's own Python interpreter:
+```bash
+python tests/test_run_pipeline.py        # 3 tests: run.sh contract, missing/corrupt model handling
+python tests/test_unit_forecasting.py    # 6 tests: P10/P50/P90 interval math, naive baseline calc
+python tests/test_analytics_modules.py   # 11 tests: budget optimizer, Monte Carlo, risk/rule engines, scenarios
+```
+All 20 tests pass against the currently committed `pickle/model.pkl` and `data/`. Each script prints a `PASS:` line per test and exits non-zero on any failure/assertion error, so a CI harness or a judge's terminal can tell success from failure without parsing output.
+
 ### Option 2: Launch the SaaS FastAPI Backend & Next.js Frontend
 To run the full SaaS prototype (backend + frontend):
 
