@@ -146,16 +146,59 @@ class EnsembleForecaster:
         to chase an earlier win. Also makes campaign/short-history series (0 years for most
         months) safely fall back to the untouched pre-fix behavior automatically.
         """
+        # BUG fix (Bing Ads audit, July 2026): the 2-years-seen guard above assumes "enough
+        # calendar history" implies "enough OBSERVATIONS to trust a monthly mean" -- true for
+        # dense series (Overall/Google Ads, tens of thousands of rows) but false for sparse,
+        # spiky, low-volume channels. daily_df is already one row per CALENDAR DAY, so a simple
+        # row count for a month (~60 rows across 2 years) always looks "dense" even when almost
+        # all of those days are zero-revenue -- row count alone doesn't catch this. Bing Ads
+        # (2,873 total rows, mostly-zero daily revenue punctuated by rare spikes) passed the
+        # 2-year gate for June; June's mean ended up set almost entirely by a small handful of
+        # genuinely NON-ZERO days (one outlier spike in a neighboring month skewed the reference
+        # used for comparison), pushing June's seasonal index to 0.44x. That fed into
+        # _recent_baseline and cratered the Bing Ads 30-day ROAS forecast to 0.64x median against
+        # a trailing 30/60-day actual ROAS of 1.65x/1.32x -- a real, traced discrepancy, not
+        # speculation. Gate on the count of NON-ZERO observations specifically (not row count),
+        # since that's the actual quantity whose scarcity makes a mean untrustworthy here.
+        # MIN_MONTHLY_NONZERO_OBSERVATIONS=10 chosen conservatively low so it doesn't strip the
+        # guard from genuinely dense channels/dimensions that legitimately need it (Overall/
+        # Google Ads' Nov/Dec months have hundreds of non-zero days and are unaffected); it only
+        # disqualifies months where the mean has no real statistical footing. Months failing this
+        # gate silently fall back to the untouched pre-fix behavior (index absent ->
+        # _recent_baseline's factor defaults to 1.0, i.e. no seasonal adjustment), same accepted
+        # trade-off as the years-seen guard above.
+        # SUPERSEDES an earlier attempt at this same fix that gated on total non-zero observation
+        # COUNT summed across all years for a month -- verified directly against Bing Ads and it
+        # did NOT resolve the issue: June's non-zero days across years (0+16+2=18) still cleared
+        # that gate, because the count was never the problem. Re-diagnosed by breaking June down
+        # year-by-year: month=6/year=2024 is 30 days, ALL zero (channel had not launched/had no
+        # activity yet that whole calendar month) -- a structural "doesn't exist yet" artifact --
+        # sitting alongside month=6/year=2025's real data (16 non-zero days, mean=168.26) in the
+        # SAME average, dragging June's mean (and therefore its seasonal index) down to look like
+        # a genuinely weak month rather than "one real year plus one cold-start year". A real
+        # campaign, even a badly-performing one, essentially never nets exactly $0 across an
+        # entire calendar month -- that's a distinguishing, low-risk signal for "this dimension's
+        # tracked history had not started yet", separable from genuinely low-but-real seasonal
+        # months. Fix: exclude any single (month, year) pair from the average when that specific
+        # year's total for the month is exactly zero, before requiring 2+ remaining years and
+        # computing the mean -- rather than gating on non-zero-day count summed across years,
+        # which a single genuine active year can satisfy on its own regardless of how many
+        # cold-start years are mixed in alongside it.
         if daily_df.empty or metric_col not in daily_df.columns:
             return {}
         dates = pd.to_datetime(daily_df['date'])
         monthly_means: Dict[int, float] = {}
         for m in range(1, 13):
             mask = dates.dt.month == m
-            years_seen = dates[mask].dt.year.nunique()
-            if years_seen < 2:
+            if not mask.any():
                 continue
-            monthly_means[m] = float(daily_df.loc[mask, metric_col].mean())
+            month_slice = daily_df.loc[mask, [metric_col]].copy()
+            month_slice['_year'] = dates[mask].dt.year.values
+            year_totals = month_slice.groupby('_year')[metric_col].sum()
+            real_years = year_totals[year_totals > 0].index
+            if len(real_years) < 2:
+                continue
+            monthly_means[m] = float(month_slice.loc[month_slice['_year'].isin(real_years), metric_col].mean())
         if not monthly_means:
             return {}
         reference = float(np.median(list(monthly_means.values())))

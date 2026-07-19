@@ -1836,7 +1836,7 @@ function TabExplainability({ data, loading, error }: { data: ExplainabilityRespo
         </LightCard>
       </div>
       <LightCard>
-        <OverviewSectionHead index="03" title="Channel Importance Rankings" />
+        <OverviewSectionHead index="03" title="Channel Importance Rankings" meta="Historical, not forecast" />
         <div className="flex flex-col gap-2">
           {data.channel_importance.map((c, i) => (
             <div key={i} className="flex items-center justify-between rounded-xl border border-white/70 bg-white/45 backdrop-blur-sm px-4 py-2.5 text-sm">

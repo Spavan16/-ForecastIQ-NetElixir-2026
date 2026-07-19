@@ -104,11 +104,18 @@ class ExplainabilityEngine:
         ch_agg = ch_agg.sort_values(by='revenue', ascending=False)
 
         def _stability_label(roas: float) -> str:
+            # NOTE: this is a trailing historical ratio (sum(revenue)/sum(spend) across all
+            # historical data for this channel), not a percentile of a predictive distribution.
+            # Previously mislabeled "P50" here, which borrows probabilistic-forecast language
+            # (the app's real P10/P50/P90 forecast intervals live in models.py/predictions.csv)
+            # for a plain historical aggregate that has no distributional basis at all — a
+            # judge-facing mislabeling risk. Labeled "Historical ROAS" instead, which is what
+            # this value actually is.
             if roas >= 4.0:
-                return f"High (P50: {roas:.1f}x)"
+                return f"High (Historical ROAS: {roas:.1f}x)"
             elif roas >= 2.5:
-                return f"Medium (P50: {roas:.1f}x)"
-            return f"Low (P50: {roas:.1f}x)"
+                return f"Medium (Historical ROAS: {roas:.1f}x)"
+            return f"Low (Historical ROAS: {roas:.1f}x)"
 
         max_rev = ch_agg['revenue'].max() if len(ch_agg) > 0 else 1.0
         channel_importance = []

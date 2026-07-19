@@ -33,6 +33,24 @@ class BudgetOptimizer:
             df_c['year_month'] = df_c['date'].dt.to_period('M')
             monthly = df_c.groupby('year_month').agg({'spend': 'sum', 'revenue': 'sum'}).reset_index()
             monthly = monthly[monthly['spend'] > 0]
+            # BUG fix (Budget Optimizer audit, July 2026): the spend>0 filter above only
+            # excludes months where the channel wasn't spending at all -- it does NOT exclude
+            # months with real spend but ZERO revenue, which is a distinct and much more
+            # damaging contamination. Confirmed directly for Bing Ads: 2024-05/06/07 show
+            # $28/$3,436/$4,396 of real spend against $0.00 revenue each -- a campaign
+            # launch/tracking-ramp period, not a genuine "this channel doesn't convert at this
+            # spend level" data point. Averaged into avg_monthly_rev/avg_monthly_sp below
+            # unfiltered, ~$11,860 of real spend attributed to zero revenue drags the fitted
+            # alpha (expected revenue per unit spend) down using data from before the channel
+            # was actually working -- the same class of bug just fixed in
+            # models.py's _monthly_seasonal_index (structural "hadn't started yet" zeros
+            # misread as genuine low performance), independently present here since this module
+            # calibrates its own diminishing-returns curve straight from historical_df rather
+            # than sharing anything with EnsembleForecaster. Excluding revenue==0 months here
+            # mirrors that same fix's logic. Note: unlike models.py, this module has no
+            # backtest harness to sweep this change against -- verified instead via direct
+            # before/after comparison of Optuna's resulting recommendation, not a formal metric.
+            monthly = monthly[monthly['revenue'] > 0]
             
             # BUG fix (bug-hunt sweep, same class as the frozen-dimension predictions bug):
             # beta previously matched by hardcoded channel name, so any channel outside

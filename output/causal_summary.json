@@ -7,17 +7,17 @@
     {
       "channel": "Google Ads",
       "revenue_p50_90d": 862889.1,
-      "share_pct": 95.4
+      "share_pct": 94.2
     },
     {
       "channel": "Meta Ads",
       "revenue_p50_90d": 34851.92,
-      "share_pct": 3.9
+      "share_pct": 3.8
     },
     {
       "channel": "Bing Ads",
-      "revenue_p50_90d": 6725.04,
-      "share_pct": 0.7
+      "revenue_p50_90d": 18077.19,
+      "share_pct": 2.0
     }
   ],
   "campaign_type_breakdown": [
@@ -78,5 +78,5 @@
       "days_since_last_spend": 87
     }
   ],
-  "causal_summary": "[Mock Insight Mode Enabled] Causal Inference Summary: historical revenue growth ($427,858 projected over 90 days) is concentrated in Google Ads, which accounts for 95.4% of forecast channel revenue at 5.66x ROAS - see the Explainability tab for the full SHAP-ranked channel and campaign contributions. Blended ROAS (2.40x) is most sensitive to Meta Ads, which carries the widest 90-day ROAS forecast interval of the active channels (1366% of its own P50 value) - a swing there moves the blended number the most. Within that mix, PERFORMANCE_MAX is the largest single campaign-type driver, accounting for 45.2% of forecast revenue at 3.98x ROAS - the Explainability tab's SHAP breakdown traces exactly how much of Google Ads's share above is carried by this campaign type versus the rest of its mix."
+  "causal_summary": "[Mock Insight Mode Enabled] Causal Inference Summary: historical revenue growth ($427,858 projected over 90 days) is concentrated in Google Ads, which accounts for 94.2% of forecast channel revenue at 5.66x ROAS - see the Explainability tab for the full SHAP-ranked channel and campaign contributions. Blended ROAS (2.40x) is most sensitive to Meta Ads, which carries the widest 90-day ROAS forecast interval of the active channels (519% of its own P50 value) - a swing there moves the blended number the most. Within that mix, PERFORMANCE_MAX is the largest single campaign-type driver, accounting for 45.2% of forecast revenue at 3.98x ROAS - the Explainability tab's SHAP breakdown traces exactly how much of Google Ads's share above is carried by this campaign type versus the rest of its mix."
 }
