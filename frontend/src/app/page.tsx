@@ -1576,18 +1576,20 @@ function channelToneFor(channel: string, index: number): string {
 
 function TabBudget({
   channels,
-  simInputs, onSimChange, simResult, simLoading,
-  optInputs, onOptChange, optResult, optLoading, onRunOptimize,
+  simInputs, onSimChange, simResult, simLoading, simError,
+  optInputs, onOptChange, optResult, optLoading, optError, onRunOptimize,
 }: {
   channels: string[];
   simInputs: Record<string, number>;
   onSimChange: (channel: string, v: number) => void;
   simResult: BudgetSimResponse | null;
   simLoading: boolean;
+  simError: string | null;
   optInputs: { max_budget: number; target_roas: number };
   onOptChange: (k: "max_budget" | "target_roas", v: number) => void;
   optResult: BudgetOptResponse | null;
   optLoading: boolean;
+  optError: string | null;
   onRunOptimize: () => void;
 }) {
   const sliderRows = channels.map((ch, i) => ({ key: ch, label: ch, tone: channelToneFor(ch, i) }));
@@ -1635,6 +1637,17 @@ function TabBudget({
               </div>
             </div>
           )}
+          {/* BUG fix (pre-submission live UI audit): the fetch .catch() here previously only
+              reset loading state and silently swallowed the error -- an invalid/edge-case
+              slider combination would just show nothing at all, with no indication anything
+              had gone wrong. Surface the actual message instead of a silent no-op. */}
+          {!simLoading && simError && (
+            <div className="mt-5 pt-4 border-t border-[#3A2E28]/10">
+              <div className="rounded-xl border border-red-300/60 bg-red-50/70 px-4 py-3 text-sm text-red-800">
+                {simError}
+              </div>
+            </div>
+          )}
         </LightCard>
         <LightCard className="flex flex-col">
           <OverviewSectionHead index="02" title="Optuna Global Optimizer" meta="Revenue goal seek" />
@@ -1670,6 +1683,18 @@ function TabBudget({
               <div className="flex justify-between gap-4 text-xs mt-2 pt-3 border-t border-[#3A2E28]/10">
                 <span className="font-semibold uppercase tracking-widest text-[#8A7A6E]">Expected Revenue (P10-P90)</span>
                 <span className="font-mono font-bold text-[#C0632B]">{fmtCompactCurrency(optResult.confidence_range.revenue_p10)} - {fmtCompactCurrency(optResult.confidence_range.revenue_p90)}</span>
+              </div>
+            </div>
+          )}
+          {/* BUG fix (pre-submission live UI audit): same silent-swallow pattern as the
+              Live Budget Simulator above. Confirmed live: Max Budget = 0 now correctly
+              returns a 400 with a real message from the backend fix, but until this, the
+              UI just stopped spinning and showed nothing -- no indication the run failed
+              or why. */}
+          {!optLoading && optError && (
+            <div className="mt-2 pt-4 border-t border-[#3A2E28]/10">
+              <div className="rounded-xl border border-red-300/60 bg-red-50/70 px-4 py-3 text-sm text-red-800">
+                {optError}
               </div>
             </div>
           )}
@@ -2213,10 +2238,12 @@ export default function Page() {
   const [simInputs, setSimInputs] = useState<Record<string, number>>({});
   const [simResult, setSimResult] = useState<BudgetSimResponse | null>(null);
   const [simLoading, setSimLoading] = useState(false);
+  const [simError, setSimError] = useState<string | null>(null);
 
   const [optInputs, setOptInputs] = useState({ max_budget: 100000, target_roas: 4.5 });
   const [optResult, setOptResult] = useState<BudgetOptResponse | null>(null);
   const [optLoading, setOptLoading] = useState(false);
+  const [optError, setOptError] = useState<string | null>(null);
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
@@ -2277,6 +2304,7 @@ export default function Page() {
   // ── Budget simulator: debounce-free, re-run on every slider change ─────
   useEffect(() => {
     setSimLoading(true);
+    setSimError(null);
     // BUG fix (bug-hunt sweep): request body now matches the backend's dynamic
     // BudgetSimRequest.channel_pcts schema instead of the old fixed 3-field shape.
     fetchJson<BudgetSimResponse>("/api/simulate-budget", {
@@ -2285,7 +2313,10 @@ export default function Page() {
       body: JSON.stringify({ channel_pcts: simInputs }),
     })
       .then(data => { setSimResult(data); setSimLoading(false); })
-      .catch(() => setSimLoading(false));
+      // BUG fix (pre-submission live UI audit): previously only reset loading state and
+      // swallowed the error entirely, matching the same fetchJson convention used for every
+      // other panel's error state (see the useEffect above) instead of a silent no-op.
+      .catch(e => { setSimError(String(e.message ?? e)); setSimLoading(false); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [simInputs]);
 
@@ -2299,13 +2330,20 @@ export default function Page() {
 
   const handleRunOptimize = useCallback(() => {
     setOptLoading(true);
+    setOptError(null);
+    setOptResult(null);
     fetchJson<BudgetOptResponse>("/api/optimize-budget", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(optInputs),
     })
       .then(data => { setOptResult(data); setOptLoading(false); })
-      .catch(() => setOptLoading(false));
+      // BUG fix (pre-submission live UI audit): previously only reset loading state and
+      // swallowed the error entirely -- e.g. Max Budget = 0 now correctly returns a 400 with
+      // a real message from the backend fix, but the UI just went quiet with no indication
+      // the run failed or why. Also clear stale optResult on a new run so a previous
+      // successful result can't linger on screen next to an unrelated new error.
+      .catch(e => { setOptError(String(e.message ?? e)); setOptLoading(false); });
   }, [optInputs]);
 
   const handleSendChat = useCallback((overrideText?: string) => {
@@ -2467,8 +2505,8 @@ export default function Page() {
           {activeTab === "budget" && (
             <TabBudget
               channels={dimensions.data?.channels ?? []}
-              simInputs={simInputs} onSimChange={handleSimChange} simResult={simResult} simLoading={simLoading}
-              optInputs={optInputs} onOptChange={handleOptChange} optResult={optResult} optLoading={optLoading}
+              simInputs={simInputs} onSimChange={handleSimChange} simResult={simResult} simLoading={simLoading} simError={simError}
+              optInputs={optInputs} onOptChange={handleOptChange} optResult={optResult} optLoading={optLoading} optError={optError}
               onRunOptimize={handleRunOptimize}
             />
           )}
