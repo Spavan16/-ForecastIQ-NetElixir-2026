@@ -12,6 +12,9 @@ venv/
 __pycache__/
 *.pyc
 # NOTE: *.pkl is intentionally NOT excluded — pickle/model.pkl must be committed for hackathon submission
+# features.pkl (repo root) is a runtime-generated intermediate artifact — run.sh regenerates
+# it fresh on every run before it's ever read, so it doesn't need to be committed.
+/features.pkl
 
 # SQLite run-history DB (src/database.py) — runtime-generated, grows on every backend run
 forecast_iq.db
